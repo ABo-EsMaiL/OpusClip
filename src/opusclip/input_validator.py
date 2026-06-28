@@ -31,7 +31,10 @@ def validate_youtube_url(url: str) -> str:
     if parsed.scheme not in ("http", "https"):
         raise InputValidationError(f"Invalid URL scheme: {parsed.scheme}")
         
-    if not parsed.netloc.endswith(("youtube.com", "youtu.be")):
+    netloc = parsed.netloc.lower()
+    valid_domains = {"youtube.com", "www.youtube.com", "youtu.be"}
+    
+    if netloc not in valid_domains:
         raise InputValidationError(f"Invalid YouTube domain: {parsed.netloc}")
         
     return url
