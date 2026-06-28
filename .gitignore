@@ -3,13 +3,23 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Output directories
+# Testing, Linting, and Coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Output and temporary directories
 opusclip_output/
+outputs/
+renders/
 temp/
 /tmp/
 
 # Virtual environments
-.env
 .venv
 env/
 venv/
@@ -19,6 +29,8 @@ venv.bak/
 
 # Environment Variables
 .env
+.env.*
+!.env.example
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -26,14 +38,14 @@ venv.bak/
 # IDEs
 .vscode/
 .idea/
+*.swp
 
 # Distribution / packaging
 dist/
 build/
 *.egg-info/
+*.egg
 
 # Project specific
 *.ass
 *.wav
-*.mp4
-*.mkv
