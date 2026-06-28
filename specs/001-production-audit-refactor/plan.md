@@ -63,19 +63,21 @@ If any gate fails, the audit report must be revised before proceeding.
 
 > **MANDATORY GIT WORKFLOW**: Every phase MUST be completed in its own branch milestone with clean commits. The agent must pause, review modified files, remove debug code, ensure formatting, and create a meaningful git commit (e.g., "Phase 1 - Security") before continuing to the next phase. `PROJECT_PROGRESS.md` must be updated after every phase.
 
-The implementation will follow these 11 strictly ordered phases:
+The implementation will follow these 13 strictly ordered phases:
 
-1. **Phase 1 - Security**: Address critical security findings (API keys, shell injection, `/tmp/` usage).
-2. **Phase 2 - Dependency Cleanup**: Bundle fonts, resolve platform coupling, establish clean requirements.
-3. **Phase 3 - Architecture**: Scaffold the target modular structure (PipelineContext, decoupled stages).
-4. **Phase 4 - AI Providers**: Implement Abstract Base Classes for LLM, Transcription, and Face Detection; migrate to MediaPipe.
-5. **Phase 5 - Rendering**: Break apart the god function, fix FFmpeg leaks, eliminate unnecessary disk writes.
-6. **Phase 6 - Reliability**: Add structured logging, retry logic, exception recovery, and intermediate file cleanup.
-7. **Phase 7 - Performance**: Optimize CPU/GPU bottlenecks, evaluate single-pass subtitle burn-in.
-8. **Phase 8 - CLI**: Build a robust CLI orchestrator capable of batch processing multiple videos.
-9. **Phase 9 - Testing**: Write unit tests, integration tests, and perform static analysis.
-10. **Phase 10 - Documentation**: Finalize docstrings, `README.md`, `CONTRIBUTING.md`, and architecture diagrams.
-11. **Phase 11 - Final Notebook**: Create a polished Google Colab notebook demonstrating the production pipeline (only after all other phases are complete).
+1. **Phase 1 - Setup**: Repository scaffolding, project structure, configuration, CI/CD, and environment setup.
+2. **Phase 2 - Security Hardening**: Address critical security findings (API keys, shell injection, `/tmp/` usage).
+3. **Phase 3 - Dependency Cleanup**: Bundle fonts, resolve platform coupling, establish clean requirements.
+4. **Phase 4 - Core Architecture**: Scaffold the target modular structure (PipelineContext, decoupled stages).
+5. **Phase 5 - AI Providers**: Implement Abstract Base Classes for LLM, Transcription, Face Detection; migrate to MediaPipe.
+6. **Phase 6 - Rendering Pipeline**: Break apart the god function, fix FFmpeg leaks, eliminate unnecessary disk writes.
+7. **Phase 7 - Reliability & Logging**: Add structured logging, retry logic, exception recovery, cache management, and health checks.
+8. **Phase 8 - Performance Optimization**: Optimize CPU/GPU bottlenecks, implement runtime metrics.
+9. **Phase 9 - CLI & Batch Processing**: Build a robust CLI orchestrator capable of batch processing with resume support.
+10. **Phase 10 - Testing**: Write unit tests, integration tests, and document manual validation steps.
+11. **Phase 11 - Documentation**: Finalize docstrings, `README.md`, `CONTRIBUTING.md`, architecture diagrams, and Docker setup.
+12. **Phase 12 - Final Notebook**: Create a polished Google Colab notebook demonstrating the production pipeline.
+13. **Phase 13 - Polish & Final Review**: Code cleanup, static analysis fixes, repository tagging, and release preparation.
 
 ## Code Quality & Repository Standards
 
@@ -109,42 +111,50 @@ opusclip_v2_1_final.py   # 1332-line notebook export (READ-ONLY during audit)
 
 # Target architecture (defined in blueprint, NOT created during audit)
 src/
-├── core/                # Pipeline orchestrator, config, caching
-│   ├── config.py
-│   ├── pipeline.py
-│   └── cache.py
-├── input/               # Video input & download module
-│   ├── base.py          # Abstract input provider
-│   ├── youtube.py       # yt-dlp provider
-│   └── local.py         # Local file provider
-├── transcription/       # Speech-to-text module
-│   ├── base.py          # Abstract transcription provider
-│   ├── whisper.py       # faster-whisper provider
-│   └── word_repair.py   # Word timestamp repair
-├── clip_selection/      # AI-powered clip identification
-│   ├── base.py          # Abstract LLM provider
-│   ├── openai_compat.py # OpenAI-compatible API provider
-│   └── selector.py      # Clip scoring & validation
-├── face_detection/      # Face detection & tracking
-│   ├── base.py          # Abstract face detector provider
-│   ├── dlib_detector.py # dlib HOG + landmark provider
-│   └── smart_director.py # Camera direction logic
-├── subtitle/            # Subtitle generation & rendering
-│   ├── base.py          # Abstract subtitle renderer
-│   ├── ass_builder.py   # ASS format builder
-│   ├── text_cleaner.py  # Unicode cleaning
-│   └── fonts.py         # Font management
-├── rendering/           # Video rendering & composition
-│   ├── base.py          # Abstract video renderer
-│   ├── ffmpeg.py        # FFmpeg rendering provider
-│   └── broll.py         # B-roll background generation
-├── metadata/            # Social media metadata generation
-│   ├── base.py          # Abstract metadata provider
-│   └── llm_meta.py      # LLM-based metadata generator
-└── output/              # Output & delivery
-    ├── base.py          # Abstract output handler
-    ├── local.py         # Local filesystem output
-    └── summary.py       # Pipeline summary reporter
+└── opusclip/            # Package root
+    ├── __init__.py      # Package exports and py.typed
+    ├── __version__.py   # Semantic versioning
+    ├── __main__.py      # CLI entry point
+    ├── cli.py           # Command line interface
+    ├── pipeline.py      # Core orchestrator
+    ├── config.py        # Config dataclasses and environment loading
+    ├── exceptions.py    # Custom exception hierarchy
+    ├── context.py       # PipelineContext definitions
+    ├── security.py      # Secret management
+    ├── provider_factory.py # Dynamic dependency injection
+    ├── subprocess_utils.py # Safe execution wrappers
+    ├── input_validator.py  # Path traversal and URL validation
+    ├── metrics.py       # Performance reporting
+    ├── core/                # Core utilities
+    │   └── cache.py         # File caching and state recovery
+    ├── input/               # Video input & download module
+    │   ├── base.py          # Abstract input provider
+    │   ├── youtube.py       # yt-dlp provider
+    │   └── local.py         # Local file provider
+    ├── transcription/       # Speech-to-text module
+    │   ├── base.py          # Abstract transcription provider
+    │   ├── whisper.py       # faster-whisper provider
+    │   └── word_repair.py   # Word timestamp repair
+    ├── clip_selection/      # AI-powered clip identification
+    │   ├── base.py          # Abstract LLM provider
+    │   ├── llm_selector.py  # LLM-based Clip scoring & validation
+    ├── face_detection/      # Face detection & tracking
+    │   ├── base.py          # Abstract face detector provider
+    │   ├── mediapipe_detector.py # MediaPipe blendshape provider
+    │   └── smart_director.py # Camera direction logic
+    ├── subtitle/            # Subtitle generation & rendering
+    │   ├── base.py          # Abstract subtitle renderer
+    │   ├── ass_builder.py   # ASS format builder
+    │   ├── text_cleaner.py  # Unicode cleaning
+    │   └── fonts.py         # Font management
+    ├── rendering/           # Video rendering & composition
+    │   ├── base.py          # Abstract video renderer
+    │   ├── ffmpeg_renderer.py # FFmpeg rendering provider
+    │   ├── validator.py     # Output ffprobe verification
+    │   └── broll.py         # B-roll background generation
+    └── metadata/            # Social media metadata generation
+        ├── base.py          # Abstract metadata provider
+        └── llm_metadata.py  # LLM-based metadata generator
 
 tests/
 ├── unit/
