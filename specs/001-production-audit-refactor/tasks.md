@@ -47,10 +47,10 @@
 
 **Addresses**: SEC-001, SEC-002, SEC-003, SEC-004, ARCH-002 (partial)
 
-- [ ] T010 [US3] Create `src/opusclip/security.py` — implement `load_api_key()` that reads `OPUSCLIP_API_KEY` from environment, raises `ConfigurationError` if missing. Addresses SEC-001 (hardcoded API key at L211)
-- [ ] T011 [US3] Create `src/opusclip/subprocess_utils.py` — implement `run_ffmpeg(args: list[str]) -> subprocess.CompletedProcess` and `run_ytdlp(args: list[str]) -> subprocess.CompletedProcess` using list-based `subprocess.run()` with no `shell=True`. Addresses SEC-002 (`_sh()` at L39-44)
-- [ ] T012 [P] [US3] Create `src/opusclip/temp_manager.py` — implement `TempDir` context manager wrapping `tempfile.mkdtemp(prefix="opusclip_")` with automatic cleanup in `__exit__`. Addresses SEC-003 (hardcoded `/tmp/` at L99, L100, L981)
-- [ ] T013 [US3] Create `src/opusclip/input_validator.py` — implement `validate_video_path(path: str) -> Path` (resolves symlinks, checks extension, verifies parent directory) and `validate_youtube_url(url: str) -> str` (parses with `urllib.parse`, validates scheme and netloc). Addresses SEC-004 (no validation at L259-282)
+- [X] T010 [US3] Create `src/opusclip/security.py` — implement `load_api_key()` that reads `OPUSCLIP_API_KEY` from environment, raises `ConfigurationError` if missing. Addresses SEC-001 (hardcoded API key at L211)
+- [X] T011 [US3] Create `src/opusclip/subprocess_utils.py` — implement `run_ffmpeg(args: list[str]) -> subprocess.CompletedProcess` and `run_ytdlp(args: list[str]) -> subprocess.CompletedProcess` using list-based `subprocess.run()` with no `shell=True`. Addresses SEC-002 (`_sh()` at L39-44)
+- [X] T012 [P] [US3] Create `src/opusclip/temp_manager.py` — implement `TempDir` context manager wrapping `tempfile.mkdtemp(prefix="opusclip_")` with automatic cleanup in `__exit__`. Addresses SEC-003 (hardcoded `/tmp/` at L99, L100, L981)
+- [X] T013 [US3] Create `src/opusclip/input_validator.py` — implement `validate_video_path(path: str) -> Path` (resolves symlinks, checks extension, verifies parent directory) and `validate_youtube_url(url: str) -> str` (parses with `urllib.parse`, validates scheme and netloc). Addresses SEC-004 (no validation at L259-282)
 
 **Checkpoint**: All Critical security findings are remediated. No secrets in source. No `shell=True`. No predictable temp paths. Input is validated.
 
