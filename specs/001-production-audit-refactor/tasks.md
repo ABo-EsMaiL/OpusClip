@@ -21,21 +21,21 @@
 
 **Purpose**: Repository scaffolding, project structure, configuration management, and environment setup. Creates the foundation every subsequent phase depends on.
 
-- [ ] T001 Create `src/opusclip/__init__.py` and `src/opusclip/py.typed` marker for the package root
-- [ ] T002 Create `src/opusclip/config.py` — define `PipelineConfig` dataclass centralizing all magic numbers with a strict hierarchy (defaults → config file → `.env` → CLI arguments). Addresses audit CODE-002
-- [ ] T003 [P] Create `src/opusclip/exceptions.py` — define exception hierarchy: `OpusClipError` (base), `ConfigurationError`, `TranscriptionError`, `ClipSelectionError`, `FaceDetectionError`, `RenderingError`, `MetadataError`, `InputValidationError`
-- [ ] T004 [P] Create `src/opusclip/context.py` — define `PipelineContext` dataclass holding video metadata (path, width, height, fps, duration), transcript data, selected clips, render state, and output directory. Addresses audit ARCH-001
-- [ ] T005 [P] Create `.env.example` with all required environment variables (`OPUSCLIP_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `WHISPER_MODEL`, `WHISPER_DEVICE`, `OUTPUT_DIR`, `LOG_LEVEL`)
-- [ ] T006 [P] Create `pyproject.toml` with project metadata, Python >=3.10 requirement, console_scripts entry point `opusclip`, and dev dependencies (pytest, mypy, ruff)
-- [ ] T007 Update `requirements.txt` to pin exact minimum versions per research.md Decision 6 (`faster-whisper>=1.0.0`, `mediapipe>=0.10.9`, `opencv-python-headless>=4.9.0`, `openai>=1.12.0`, `yt-dlp>=2023.12.30`, `numpy>=1.26.4`, `torch>=2.0.0,<3.0.0`)
-- [ ] T008 [P] Create `requirements-dev.txt` with `pytest>=8.0`, `pytest-cov>=4.1`, `mypy>=1.8`, `ruff>=0.3.0`
-- [ ] T009 Update `.gitignore` to include `*.ass`, `*.wav`, `opusclip_output/`, `__pycache__/`, `.env`, `*.egg-info/`, `dist/`, `build/`, `temp/`, `.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`
-- [ ] T009a [P] Create `src/opusclip/__version__.py` to define the package version
-- [ ] T009b [P] Create `.github/workflows/ci.yml` to define GitHub Actions CI for linting, type checking, and test execution
-- [ ] T009c [P] Create `.pre-commit-config.yaml` to enforce formatting (ruff) and type checking locally
-- [ ] T009d [P] Create `.gitattributes` to normalize line endings and `.github/CODEOWNERS` to enforce code review
-- [ ] T009e [P] Create `.github/PULL_REQUEST_TEMPLATE.md` and basic `.github/ISSUE_TEMPLATE/` structure
-- [ ] T009f [P] Create `.github/dependabot.yml` for automated dependency updates
+- [X] T001 Create `src/opusclip/__init__.py` and `src/opusclip/py.typed` marker for the package root
+- [X] T002 Create `src/opusclip/config.py` — define `PipelineConfig` dataclass centralizing all magic numbers with a strict hierarchy (defaults → config file → `.env` → CLI arguments). Addresses audit CODE-002
+- [X] T003 [P] Create `src/opusclip/exceptions.py` — define exception hierarchy: `OpusClipError` (base), `ConfigurationError`, `TranscriptionError`, `ClipSelectionError`, `FaceDetectionError`, `RenderingError`, `MetadataError`, `InputValidationError`
+- [X] T004 [P] Create `src/opusclip/context.py` — define `PipelineContext` dataclass holding video metadata (path, width, height, fps, duration), transcript data, selected clips, render state, and output directory. Addresses audit ARCH-001
+- [X] T005 [P] Create `.env.example` with all required environment variables (`OPUSCLIP_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `WHISPER_MODEL`, `WHISPER_DEVICE`, `OUTPUT_DIR`, `LOG_LEVEL`)
+- [X] T006 [P] Create `pyproject.toml` with project metadata, Python >=3.10 requirement, console_scripts entry point `opusclip`, and dev dependencies (pytest, mypy, ruff)
+- [X] T007 Update `requirements.txt` to pin exact minimum versions per research.md Decision 6 (`faster-whisper>=1.0.0`, `mediapipe>=0.10.9`, `opencv-python-headless>=4.9.0`, `openai>=1.12.0`, `yt-dlp>=2023.12.30`, `numpy>=1.26.4`, `torch>=2.0.0,<3.0.0`)
+- [X] T008 [P] Create `requirements-dev.txt` with `pytest>=8.0`, `pytest-cov>=4.1`, `mypy>=1.8`, `ruff>=0.3.0`
+- [X] T009 Update `.gitignore` to include `*.ass`, `*.wav`, `opusclip_output/`, `__pycache__/`, `.env`, `*.egg-info/`, `dist/`, `build/`, `temp/`, `.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`
+- [X] T009a [P] Create `src/opusclip/__version__.py` to define the package version
+- [X] T009b [P] Create `.github/workflows/ci.yml` to define GitHub Actions CI for linting, type checking, and test execution
+- [X] T009c [P] Create `.pre-commit-config.yaml` to enforce formatting (ruff) and type checking locally
+- [X] T009d [P] Create `.gitattributes` to normalize line endings and `.github/CODEOWNERS` to enforce code review
+- [X] T009e [P] Create `.github/PULL_REQUEST_TEMPLATE.md` and basic `.github/ISSUE_TEMPLATE/` structure
+- [X] T009f [P] Create `.github/dependabot.yml` for automated dependency updates
 
 **Checkpoint**: Project skeleton exists. `pip install -e .` would succeed (no business logic yet). All configuration is externalized. CI, pre-commit, and repository standards are fully configured.
 
