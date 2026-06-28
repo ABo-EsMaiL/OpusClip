@@ -22,7 +22,7 @@
 **Purpose**: Repository scaffolding, project structure, configuration management, and environment setup. Creates the foundation every subsequent phase depends on.
 
 - [X] T001 Create `src/opusclip/__init__.py` and `src/opusclip/py.typed` marker for the package root
-- [X] T002 Create `src/opusclip/config.py` — define `PipelineConfig` dataclass centralizing all magic numbers with a strict hierarchy (defaults → config file → `.env` → CLI arguments). Addresses audit CODE-002
+- [X] T002 Create `src/opusclip/config.py` — define `PipelineConfig` dataclass centralizing all magic numbers with a strict hierarchy (defaults → `.env` → environment variables → CLI arguments). Config file support is intentionally deferred to Phase 9. Addresses audit CODE-002
 - [X] T003 [P] Create `src/opusclip/exceptions.py` — define exception hierarchy: `OpusClipError` (base), `ConfigurationError`, `TranscriptionError`, `ClipSelectionError`, `FaceDetectionError`, `RenderingError`, `MetadataError`, `InputValidationError`
 - [X] T004 [P] Create `src/opusclip/context.py` — define `PipelineContext` dataclass holding video metadata (path, width, height, fps, duration), transcript data, selected clips, render state, and output directory. Addresses audit ARCH-001
 - [X] T005 [P] Create `.env.example` with all required environment variables (`OPUSCLIP_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `WHISPER_MODEL`, `WHISPER_DEVICE`, `OUTPUT_DIR`, `LOG_LEVEL`)

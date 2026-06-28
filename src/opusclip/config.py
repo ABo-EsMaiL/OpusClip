@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
 
 
 @dataclass
@@ -32,21 +33,10 @@ class PipelineConfig:
     @classmethod
     def from_env(cls, **cli_overrides: Any) -> "PipelineConfig":
         """
-        Creates a PipelineConfig resolving defaults -> .env -> CLI args.
+        Creates a PipelineConfig resolving defaults -> .env -> environment -> CLI args.
         CLI overrides take highest precedence.
         """
-        # Load .env manually to preserve zero-cost/zero-dependency policy
-        env_path = Path(".env")
-        if env_path.is_file():
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        key, _, value = line.partition("=")
-                        key = key.strip()
-                        # Only set if not already present in environment
-                        if key and key not in os.environ:
-                            os.environ[key] = value.strip().strip("'\"")
+        load_dotenv()
 
         config = cls()
         
