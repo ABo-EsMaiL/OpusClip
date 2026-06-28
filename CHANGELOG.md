@@ -7,5 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Repository scaffolded with documentation and testing structure.
-- Implementation 11-phase workflow defined.
+- Phase 1: Repository scaffolded with complete project structure and base configuration.
+- Base exception hierarchy (`OpusClipError`) and pipeline context definitions.
+- CI/CD workflows, pre-commit config, and issue templates.
+- Implementation 13-phase workflow defined.
