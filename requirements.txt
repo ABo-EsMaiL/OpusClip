@@ -1,0 +1,12 @@
+# AI Models & Providers
+faster-whisper>=1.0.0
+mediapipe>=0.10.9
+openai>=1.12.0
+
+# Video / Data Processing
+opencv-python-headless>=4.9.0
+numpy>=1.26.4
+yt-dlp>=2023.12.30
+
+# PyTorch (Required by faster-whisper/CTranslate2)
+torch>=2.0.0,<3.0.0
