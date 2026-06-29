@@ -60,9 +60,9 @@ Verify: `ffmpeg -version && ffprobe -version`
 Set your LLM API key (required for clip selection and metadata generation):
 
 ```bash
-export OPUSCLIP_API_KEY="gsk_..."           # Groq / OpenAI / compatible
-export LLM_BASE_URL="https://api.groq.com/openai/v1"  # optional
-export LLM_MODEL="llama3-70b-8192"          # optional, default: gpt-3.5-turbo
+export OPUSCLIP_API_KEY="sk-..."           # Get yours at https://opencode.ai/zen
+export LLM_BASE_URL="https://opencode.ai/zen/v1"   # optional, default: opencode.ai
+export LLM_MODEL="deepseek-v4-flash-free"  # optional, default: deepseek-v4-flash-free
 ```
 
 All configuration fields are documented in [docs/configuration.md](docs/configuration.md).

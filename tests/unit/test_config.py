@@ -26,7 +26,8 @@ class TestPipelineConfigDefaults:
 
     def test_llm_defaults(self):
         config = PipelineConfig()
-        assert config.llm_model == "gpt-3.5-turbo"
+        assert config.llm_model == "deepseek-v4-flash-free"
+        assert config.llm_base_url == "https://opencode.ai/zen/v1"
 
 
 class TestPipelineConfigFromEnv:

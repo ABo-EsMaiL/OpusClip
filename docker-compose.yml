@@ -7,7 +7,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - OPUSCLIP_API_KEY=${OPUSCLIP_API_KEY:?API key required}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
-      - LLM_MODEL=${LLM_MODEL:-gpt-3.5-turbo}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-v4-flash-free}
       - WHISPER_DEVICE=${WHISPER_DEVICE:-cuda}
     volumes:
       - ./output:/app/output

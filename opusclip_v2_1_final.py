@@ -208,7 +208,7 @@ for root, dirs, files in os.walk("/tmp/amiri"):
 # ───────────────────────────────────────────────────────────────
 
 CONFIG = {
-    "api_key"           : "sk-Fzob35iRvC5gYblBPquBPWLBOkbtn9o6nAN6PW8AWjMK1vkyaLCE7kZMWLD5eBIU",           # ← replace
+    "api_key"           : os.environ.get("OPUSCLIP_API_KEY", ""),           # ← set via env var
     "api_base"          : "https://opencode.ai/zen/v1",
     "model"             : "deepseek-v4-flash-free",
 

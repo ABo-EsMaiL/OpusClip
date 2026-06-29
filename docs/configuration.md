@@ -10,8 +10,8 @@ resolution follows this precedence (highest wins):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPUSCLIP_API_KEY` | — | API key for the LLM provider (required). |
-| `LLM_BASE_URL` | — | Custom endpoint for the LLM API (e.g. Groq, OpenAI compatibles). |
-| `LLM_MODEL` | `gpt-3.5-turbo` | Model identifier for clip selection and metadata generation. |
+| `LLM_BASE_URL` | `https://opencode.ai/zen/v1` | Custom endpoint for the LLM API (e.g. Groq, OpenAI compatibles). |
+| `LLM_MODEL` | `deepseek-v4-flash-free` | Model identifier for clip selection and metadata generation. |
 | `WHISPER_MODEL` | `large-v3` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`). |
 | `WHISPER_DEVICE` | `cuda` | Device for Whisper inference (`cuda` or `cpu`). |
 | `ENCODER` | `libx264` | FFmpeg video encoder (e.g. `h264_nvenc` for NVIDIA GPUs). |
@@ -26,8 +26,8 @@ resolution follows this precedence (highest wins):
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `api_key` | `str` | `""` | LLM API key (loaded from `OPUSCLIP_API_KEY` env). |
-| `llm_base_url` | `str` | `""` | Custom LLM API endpoint. |
-| `llm_model` | `str` | `"gpt-3.5-turbo"` | LLM model name. |
+| `llm_base_url` | `str` | `"https://opencode.ai/zen/v1"` | Custom LLM API endpoint. |
+| `llm_model` | `str` | `"deepseek-v4-flash-free"` | LLM model name. |
 | `whisper_model` | `str` | `"large-v3"` | Faster-Whisper model size. |
 | `whisper_device` | `str` | `"cuda"` | Device for Whisper. |
 

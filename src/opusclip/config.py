@@ -12,8 +12,8 @@ class PipelineConfig:
 
     # API & Models
     api_key: str = field(default_factory=lambda: os.getenv("OPUSCLIP_API_KEY", ""))
-    llm_base_url: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", ""))
-    llm_model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "gpt-3.5-turbo"))
+    llm_base_url: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://opencode.ai/zen/v1"))
+    llm_model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "deepseek-v4-flash-free"))
     whisper_model: str = field(default_factory=lambda: os.getenv("WHISPER_MODEL", "large-v3"))
     whisper_device: str = field(default_factory=lambda: os.getenv("WHISPER_DEVICE", "cuda"))
 
