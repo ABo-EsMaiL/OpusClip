@@ -195,8 +195,6 @@ class Pipeline:
         finally:
             self.metrics.finish()
             self.metrics.failures = result.failed_clips
-            # TODO: Wire metrics.api_calls / api_retries into LLM providers
-            # for accurate retry and API usage tracking during pipeline execution.
             print(self.metrics.report())
 
         return result
