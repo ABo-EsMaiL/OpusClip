@@ -1,9 +1,10 @@
 """Pipeline orchestrator — runs the 10-step video-to-clips pipeline."""
 
+import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from .cache import CacheManager
 from .config import PipelineConfig
@@ -148,6 +149,90 @@ class Pipeline:
         self._source: str = ""
         self._ctx: Optional[PipelineContext] = None
 
+    def _clear_step_cache(self) -> None:
+        if self._ctx and self._ctx.output_dir:
+            path = self._ctx.output_dir / "pipeline_cache_state.json"
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _save_step_cache(self, result: Optional[PipelineResult] = None) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        ctx = self._ctx
+        data: dict[str, Any] = {
+            "video_path": str(ctx.video_path) if ctx.video_path else None,
+            "video_width": ctx.video_width,
+            "video_height": ctx.video_height,
+            "video_fps": ctx.video_fps,
+            "duration": ctx.duration,
+            "src_crop_w": ctx.src_crop_w,
+            "transcript_data": ctx.transcript_data,
+            "selected_clips": ctx.selected_clips,
+            "render_state": {
+                "subtitle_paths": [
+                    [num, str(p)] for num, p in ctx.render_state.get("subtitle_paths", [])
+                ],
+            },
+        }
+        if result is not None:
+            data["result_clips"] = [
+                {
+                    "number": c.number,
+                    "video_path": str(c.video_path),
+                    "thumbnail_path": str(c.thumbnail_path),
+                    "success": c.success,
+                    "error": c.error,
+                }
+                for c in result.clips
+            ]
+        try:
+            (ctx.output_dir / "pipeline_cache_state.json").write_text(
+                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except OSError:
+            pass
+
+    def _load_step_cache(self, result: PipelineResult, last_completed: int) -> bool:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return False
+        path = self._ctx.output_dir / "pipeline_cache_state.json"
+        if not path.exists():
+            return False
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return False
+
+        ctx = self._ctx
+        if data.get("video_path"):
+            ctx.video_path = Path(data["video_path"])
+        ctx.video_width = data.get("video_width", 0)
+        ctx.video_height = data.get("video_height", 0)
+        ctx.video_fps = data.get("video_fps", 0.0)
+        ctx.duration = data.get("duration", 0.0)
+        ctx.src_crop_w = data.get("src_crop_w", 0)
+        ctx.transcript_data = data.get("transcript_data", {})
+        ctx.selected_clips = data.get("selected_clips", [])
+        sub_paths = data.get("render_state", {}).get("subtitle_paths", [])
+        ctx.render_state["subtitle_paths"] = [[num, Path(p)] for num, p in sub_paths]
+
+        # Only restore result clips if step 7+ was completed (rendering produces clips)
+        if last_completed >= 7:
+            for c_data in data.get("result_clips", []):
+                result.clips.append(ClipResult(
+                    number=c_data["number"],
+                    video_path=Path(c_data["video_path"]),
+                    thumbnail_path=Path(c_data["thumbnail_path"]),
+                    success=c_data.get("success", True),
+                    error=c_data.get("error"),
+                ))
+            result.successful_clips = sum(1 for c in result.clips if c.success)
+            result.failed_clips = sum(1 for c in result.clips if not c.success)
+            result.total_clips = len(result.clips)
+        return True
+
     def run(self, source: str, resume: bool = False,
             output_dir: Optional[Path] = None) -> PipelineResult:
         self._source = source
@@ -164,7 +249,16 @@ class Pipeline:
         result = PipelineResult(output_dir=out, source=source)
         self.metrics = PipelineMetrics()
         self.metrics.start()
-        cache = CacheManager(out, source) if resume else None
+
+        cache = CacheManager(out, source)
+        if not resume:
+            cache.clear()
+            self._clear_step_cache()
+
+        last_completed = cache.get_completed_step()
+        if last_completed > 0 and resume:
+            self._load_step_cache(result, last_completed)
+            print(f"  Resuming at step {last_completed + 1} (cached through step {last_completed})")
 
         steps: list[tuple[int, str, Callable[[], None]]] = [
             (1, "validate_input", lambda: self._step_1_validate_input(source)),
@@ -181,13 +275,13 @@ class Pipeline:
 
         try:
             for step_num, stage_name, step_fn in steps:
-                if cache and cache.is_step_completed(step_num):
+                if step_num <= last_completed and resume:
                     _progress(step_num, len(_STEPS), f"{_STEPS[step_num - 1]} (cached)")
                     continue
                 with self.metrics.measure_stage(stage_name):
                     step_fn()
-                if cache:
-                    cache.mark_step_completed(step_num)
+                cache.mark_step_completed(step_num)
+                self._save_step_cache(result)
         except OpusClipError:
             raise
         except Exception as exc:
