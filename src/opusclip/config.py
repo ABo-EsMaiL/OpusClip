@@ -28,7 +28,6 @@ class PipelineConfig:
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 
     # Magic Numbers / Tunables
-    max_llm_chars: int = 28000
     clip_crf: int = 20
     raw_clip_crf: int = 22  # CRF for the intermediate raw extract (ultrafast preset)
     broll_border: int = 5

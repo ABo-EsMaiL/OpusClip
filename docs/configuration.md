@@ -44,7 +44,6 @@ resolution follows this precedence (highest wins):
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `max_llm_chars` | `int` | `28000` | Max characters sent to LLM per call. Warns if coverage < 50%. |
 | `clip_crf` | `int` | `20` | CRF for final clip encoding (lower = higher quality). |
 | `raw_clip_crf` | `int` | `22` | CRF for intermediate raw extract before subtitle burn. |
 | `broll_border` | `int` | `5` | Border width in pixels for blurred-background (b-roll) frames. |

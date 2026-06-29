@@ -242,7 +242,7 @@ either install NVIDIA drivers with NVENC support or use the default encoder.
 The LLM may have rejected all candidates. Check:
 - Your transcript has sufficient content (long enough video).
 - Your API key has access to the configured model.
-- `max_llm_chars` is large enough for the full transcript.
+- The transcript fits within the LLM context window (only full transcript is sent).
 
 ## Performance Tuning
 
@@ -250,7 +250,6 @@ The LLM may have rejected all candidates. Check:
 |---------|---------------|--------|
 | `--encoder h264_nvenc` | If GPU supports NVENC | 2-4x faster encoding |
 | `WHISPER_MODEL=medium` | If VRAM < 8GB | Reduces memory, slight accuracy loss |
-| `max_llm_chars=40000` | For long transcripts | More context, higher API cost |
 | `--renderer legacy` | If optimized renderer has issues | Matches original notebook behavior |
 
 ## Batch Processing Behavior

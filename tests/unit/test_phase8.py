@@ -1,14 +1,11 @@
 """Unit tests for Phase 8 (Performance Optimization) changes."""
 
 import time
-import warnings
 
 
 from opusclip.metrics import PipelineMetrics
 from opusclip.utils.ffmpeg_utils import build_encoder_args
 from opusclip.config import PipelineConfig
-from opusclip.clip_selection.llm_selector import LLMClipSelector
-from opusclip.transcription.base import TranscriptSegment
 
 
 class TestPipelineMetrics:
@@ -111,39 +108,3 @@ class TestEncoderCLI:
         assert config.renderer_backend == "legacy"
 
 
-class TestMaxCharsTruncationWarning:
-    def test_no_warning_when_within_limit(self):
-        segments = [
-            TranscriptSegment(id=i, text="hello world", start=i * 5.0, end=i * 5.0 + 4.0, words=[])
-            for i in range(3)
-        ]
-        selector = LLMClipSelector(api_key="test", base_url="https://test.com", model="test")
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            _ = selector._compress_transcript(segments, 100000)
-        assert len(w) == 0
-
-    def test_warning_when_truncated_below_50_pct(self):
-        segments = [
-            TranscriptSegment(id=i, text="A" * 100, start=i * 5.0, end=i * 5.0 + 4.0, words=[])
-            for i in range(100)
-        ]
-        selector = LLMClipSelector(api_key="test", base_url="https://test.com", model="test")
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            selector._compress_transcript(segments, 500)
-        assert len(w) >= 1
-        assert "max_llm_chars" in str(w[0].message)
-        assert "coverage" in str(w[0].message)
-
-    def test_no_warning_above_50_pct(self):
-        segments = [
-            TranscriptSegment(id=i, text="short", start=i * 5.0, end=i * 5.0 + 4.0, words=[])
-            for i in range(10)
-        ]
-        selector = LLMClipSelector(api_key="test", base_url="https://test.com", model="test")
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            selector._compress_transcript(segments, 500)
-        truncation_warnings = [x for x in w if "max_llm_chars" in str(x.message)]
-        assert len(truncation_warnings) == 0

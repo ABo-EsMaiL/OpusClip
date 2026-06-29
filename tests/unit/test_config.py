@@ -10,7 +10,6 @@ class TestPipelineConfigDefaults:
         assert config.renderer_backend == "optimized"
         assert config.min_clips == 5
         assert config.max_clips == 12
-        assert config.max_llm_chars == 28000
         assert config.clip_crf == 20
         assert config.api_retry_attempts == 3
         assert config.log_level == "INFO"
