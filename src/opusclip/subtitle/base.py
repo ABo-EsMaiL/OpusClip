@@ -14,5 +14,5 @@ class WordTiming:
 class SubtitleRenderer(ABC):
     @abstractmethod
     def render(
-        self, words: list[WordTiming], clip_start: float, clip_end: float, config: PipelineConfig
+        self, words: list[WordTiming], clip_start: float, clip_end: float, config: PipelineConfig, output_path: Path | None = None
     ) -> Path: ...

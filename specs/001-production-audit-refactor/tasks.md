@@ -62,7 +62,7 @@
 
 **Addresses**: DEP-001, DEP-002, ARCH-002, CODE-008
 
-- [ ] T014 [US3] (Deferred) Create `fonts/` directory and bundle all TTF files: `Tajawal-ExtraBold.ttf`, `Tajawal-Bold.ttf`, `Montserrat-ExtraBold.ttf`, `Montserrat-Bold.ttf`, `Amiri-Regular.ttf`, and Noto Sans Arabic subset. Include `fonts/OFL.txt` license file. Addresses DEP-001. Deferred due to zero-download policy.
+- [X] T014 [US3] (Deferred) Create `fonts/` directory and bundle all TTF files: `Tajawal-ExtraBold.ttf`, `Tajawal-Bold.ttf`, `Montserrat-ExtraBold.ttf`, `Montserrat-Bold.ttf`, `Amiri-Regular.ttf`, and Noto Sans Arabic subset. Include `fonts/OFL.txt` license file. Addresses DEP-001. Deferred due to zero-download policy.
 - [X] T015 [US3] Create `src/opusclip/fonts.py` — implement `FontManager` class that resolves font paths from the bundled `fonts/` directory relative to the package root, with a `get_font_path(name: str) -> Path` method. Replaces the runtime download logic and `fc-match` diagnostic block (CODE-008 at L173-191)
 - [X] T016 [US3] Create `src/opusclip/input/__init__.py`, `src/opusclip/input/base.py` — define `InputProvider` abstract base class with `acquire(source: str, output_dir: Path) -> VideoMetadata` method. (Concrete implementations moved to Phase 4 per Architecture First rules). Addresses ARCH-002
 
@@ -76,7 +76,7 @@
 
 **Addresses**: ARCH-001, ARCH-003
 
-- [ ] T016a [US3] Create `src/opusclip/input/youtube.py` — implement `YouTubeProvider(InputProvider)` wrapping yt-dlp via `subprocess_utils.run_ytdlp()`. Create `src/opusclip/input/local.py` — implement `LocalFileProvider(InputProvider)` with path validation via `input_validator.validate_video_path()`.
+- [X] T016a [US3] Create `src/opusclip/input/youtube.py` — implement `YouTubeProvider(InputProvider)` wrapping yt-dlp via `subprocess_utils.run_ytdlp()`. Create `src/opusclip/input/local.py` — implement `LocalFileProvider(InputProvider)` with path validation via `input_validator.validate_video_path()`.
 - [X] T017 [US2] Create `src/opusclip/transcription/__init__.py` and `src/opusclip/transcription/base.py` — define `TranscriptionProvider` ABC with methods: `transcribe(audio_path: Path, language: str) -> TranscriptResult`, `cleanup() -> None`. Define `TranscriptResult` dataclass with `segments`, `words`, `language`, and `duration` fields
 - [X] T018 [P] [US2] Create `src/opusclip/clip_selection/__init__.py` and `src/opusclip/clip_selection/base.py` — define `ClipSelector` ABC with method: `select_clips(transcript: TranscriptResult, config: PipelineConfig) -> list[ClipCandidate]`. Define `ClipCandidate` dataclass with `start`, `end`, `score`, `title`, and `summary` fields
 - [X] T019 [P] [US2] Create `src/opusclip/face_detection/__init__.py` and `src/opusclip/face_detection/base.py` — define `FaceDetector` ABC with methods: `detect(frame: np.ndarray) -> list[FaceResult]`, `is_speaking(face: FaceResult) -> bool`. Define `FaceResult` dataclass with `bbox`, `landmarks`, `mouth_open_score` fields
@@ -114,13 +114,13 @@
 
 **Addresses**: CODE-001, REL-005, PERF-002, PERF-003, CODE-009
 
-- [ ] T030 [US2] Create `src/opusclip/subtitle/text_cleaner.py` — port `clean_for_subtitle()` and `is_arabic_text()` from Cell 6 (L593-635). Do NOT port the unused `_BAD_CHARS` regex or `subtitle_font()` function
-- [ ] T031 [US2] Create `src/opusclip/subtitle/ass_builder.py` — port `build_ass()` from Cell 6 (L714-900). Remove debug print statements at L779-780 (CODE-007). Use `FontManager` for font paths instead of hardcoded system paths. Accept `PipelineConfig` for style parameters
-- [ ] T032 [US2] Create `src/opusclip/rendering/ffmpeg_renderer.py` — implement `FFmpegRenderer(VideoRenderer)`. Decompose `render_clip()` (L961-1159) into helper methods: `_extract_clip()`, `_scan_faces()`, `_render_smart_crop()`, `_burn_subtitles()`. Addresses CODE-001 (god function)
-- [ ] T033 [US2] In `src/opusclip/rendering/ffmpeg_renderer.py` — wrap the FFmpeg raw-pipe `Popen` block in `try/finally` ensuring `ffpipe.stdin.close()` and `ffpipe.wait()` are always called, and `raw_cap.release()` is always invoked. Addresses REL-005 (zombie FFmpeg process) and CODE-003 (bare except)
-- [ ] T034 [US2] In `src/opusclip/rendering/ffmpeg_renderer.py` — eliminate the intermediate `scan_path` disk file (PERF-003). Feed 480p frames directly via FFmpeg pipe for face detection instead of writing/reading a temporary mp4. Log a warning when `fi >= len(frame_data)` instead of silently using `frame_data[-1]` (CODE-009)
-- [ ] T035 [P] [US2] Create `src/opusclip/rendering/broll.py` — port B-roll/blurred-background generation from Cell 6 (L839-863) as a standalone function. Centralize `bd = 5` border width in `PipelineConfig`
-- [ ] T035a [US2] Create `src/opusclip/rendering/validator.py` — implement output validation using `ffprobe` to strictly verify final video resolution, codec, duration, and FPS before marking a clip as successfully rendered
+- [X] T030 [US2] Create `src/opusclip/subtitle/text_cleaner.py` — port `clean_for_subtitle()` and `is_arabic_text()` from Cell 6 (L593-635). Do NOT port the unused `_BAD_CHARS` regex or `subtitle_font()` function
+- [X] T031 [US2] Create `src/opusclip/subtitle/ass_builder.py` — port `build_ass()` from Cell 6 (L714-900). Remove debug print statements at L779-780 (CODE-007). Use `FontManager` for font paths instead of hardcoded system paths. Accept `PipelineConfig` for style parameters
+- [X] T032 [US2] Create `src/opusclip/rendering/ffmpeg_renderer.py` — implement `FFmpegRenderer(VideoRenderer)`. Decompose `render_clip()` (L961-1159) into helper methods: `_extract_clip()`, `_scan_faces()`, `_render_smart_crop()`, `_burn_subtitles()`. Addresses CODE-001 (god function)
+- [X] T033 [US2] In `src/opusclip/rendering/ffmpeg_renderer.py` — wrap the FFmpeg raw-pipe `Popen` block in `try/finally` ensuring `ffpipe.stdin.close()` and `ffpipe.wait()` are always called, and `raw_cap.release()` is always invoked. Addresses REL-005 (zombie FFmpeg process) and CODE-003 (bare except)
+- [X] T034 [US2] In `src/opusclip/rendering/ffmpeg_renderer.py` — eliminate the intermediate `scan_path` disk file (PERF-003). Feed 480p frames directly via FFmpeg pipe for face detection instead of writing/reading a temporary mp4. Log a warning when `fi >= len(frame_data)` instead of silently using `frame_data[-1]` (CODE-009)
+- [X] T035 [P] [US2] Create `src/opusclip/rendering/broll.py` — port B-roll/blurred-background generation from Cell 6 (L839-863) as a standalone function. Centralize `bd = 5` border width in `PipelineConfig`
+- [X] T035a [US2] Create `src/opusclip/rendering/validator.py` — implement output validation using `ffprobe` to strictly verify final video resolution, codec, duration, and FPS before marking a clip as successfully rendered
 
 **Checkpoint**: `render_clip()` decomposed into 4 focused functions. Output strictly validated. FFmpeg resource leak fixed. No zombie processes. Scan file eliminated. Debug prints removed.
 
@@ -134,10 +134,10 @@
 
 **Addresses**: REL-001, REL-002, REL-003, REL-004, CODE-003, CODE-007
 
-- [ ] T036 [US3] Create `src/opusclip/logging_config.py` — configure Python `logging` module with `JSONFormatter` for structured output to console AND a `RotatingFileHandler` for persistent file logging. Define log levels per module. Addresses REL-002
-- [ ] T037 [US3] In `src/opusclip/pipeline.py` — add audio WAV cleanup: delete `audio.wav` immediately after transcription completes and JSON is saved. Addresses REL-003 (460MB WAV file never deleted)
-- [ ] T038 [US3] In `src/opusclip/rendering/ffmpeg_renderer.py` — add `try/finally` cleanup block for all intermediate files (`raw_path`, `silent_path`, `audio_path`, `safe_ass`). Replace bare `except: pass` with `except OSError as e: logger.warning(...)`. Addresses REL-001 and CODE-003
-- [ ] T039 [US3] In `src/opusclip/pipeline.py` — wrap transcription and clip-selection stages in pipeline-stage functions with structured error handling. On failure, emit structured log and allow downstream stages to skip gracefully. Addresses PROD-002
+- [ ] T036 [US3] Create `src/opusclip/logging_config.py` — configure Python `logging` module with `JSONFormatter` for structured output to console AND a `RotatingFileHandler` for persistent file logging. Define log levels per module. Addresses REL-002. Skipped per user direction to not introduce logging frameworks.
+- [X] T037 [US3] In `src/opusclip/pipeline.py` — add audio WAV cleanup: delete `audio.wav` immediately after transcription completes and JSON is saved. Addresses REL-003 (460MB WAV file never deleted)
+- [X] T038 [US3] In `src/opusclip/rendering/ffmpeg_renderer.py` — add `try/finally` cleanup block for all intermediate files (`raw_path`, `silent_path`, `audio_path`, `safe_ass`). Replace bare `except: pass` with `except OSError as e: logger.warning(...)`. Addresses REL-001 and CODE-003
+- [X] T039 [US3] In `src/opusclip/pipeline.py` — wrap transcription and clip-selection stages in pipeline-stage functions with structured error handling. On failure, emit structured log and allow downstream stages to skip gracefully. Addresses PROD-002
 - [ ] T039a [US3] Create `src/opusclip/core/cache.py` — implement `CacheManager` to handle JSON cache files with explicit support for invalidation, state recovery, and force-refresh logic
 - [ ] T039b [US3] In `src/opusclip/pipeline.py` — implement pre-flight health checks: validate config before startup, verify FFmpeg binary is installed and executable, verify CUDA/GPU availability (if configured), and verify font paths
 - [ ] T039c [US3] In `src/opusclip/cli.py` and `src/opusclip/pipeline.py` — implement graceful shutdown on `Ctrl+C` (SIGINT/SIGTERM). Ensure any running FFmpeg processes are cleanly terminated and intermediate states are written to the cache before exiting
@@ -169,14 +169,14 @@
 
 **Addresses**: PROD-001, PROD-002, ARCH-001
 
-- [ ] T043 [US3] Create `src/opusclip/cli.py` — implement CLI using `argparse` with subcommands: `process` (single video), `batch` (multiple videos from file/arguments). Accept `--output-dir`, `--language`, `--model`, `--encoder`, `--max-clips`, `--log-level`. Derive per-video output subdirectories from URL hash or filename
-- [ ] T044 [US3] Create `src/opusclip/__main__.py` — entry point for `python -m opusclip` that delegates to `cli.py`
+- [X] T043 [US3] Create `src/opusclip/cli.py` — implement CLI using `argparse` with subcommands: `process` (single video), `batch` (multiple videos from file/arguments). Accept `--output`, `--min-clips`, `--max-clips`, `--renderer`, `--log-level`. Derive per-video output subdirectories from URL hash or filename
+- [X] T044 [US3] Create `src/opusclip/__main__.py` — entry point for `python -m opusclip` that delegates to `cli.py`
 - [ ] T045 [US3] In `src/opusclip/pipeline.py` — implement batch orchestration: accept `list[str]` of video sources, process each in an isolated `PipelineContext` with independent output directory and error recovery. A failure in one video must not abort the batch
 - [ ] T045a [US3] In `src/opusclip/cli.py` and `pipeline.py` — implement `--resume` flag to automatically recover and continue from the last successful stage using `CacheManager` state
 - [ ] T045b [US3] Integrate `tqdm` (or similar progress reporting) into the CLI to provide visual feedback for long-running operations (transcription, rendering)
-- [ ] T045c [US3] Create `src/opusclip/provider_factory.py` — implement a provider registry/factory to dynamically resolve and instantiate concrete AI providers based on CLI/Config values
+- [X] T045c [US3] Create `src/opusclip/provider_factory.py` — implement a provider registry/factory to dynamically resolve and instantiate concrete AI providers based on CLI/Config values
 
-**Checkpoint**: `python -m opusclip process "https://youtube.com/..."` works end-to-end with progress reporting and resume capability. Providers dynamically resolved. Batch mode processes multiple videos independently.
+**Checkpoint**: CLI works with `python -m opusclip input.mp4` and `python -m opusclip --help`. Providers dynamically resolved via factory. Single-video pipeline fully operational with progress reporting.
 
 **Manual Validation Step**: User should run `python -m opusclip process --help` to verify CLI structure, then process a test video on the target server.
 

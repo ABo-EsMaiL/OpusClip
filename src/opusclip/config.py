@@ -17,6 +17,7 @@ class PipelineConfig:
 
     # Render Settings
     encoder: str = field(default_factory=lambda: os.getenv("ENCODER", "libx264"))
+    renderer_backend: str = field(default_factory=lambda: os.getenv("RENDERER", "optimized"))
     output_dir: Path = field(
         default_factory=lambda: Path(os.getenv("OUTPUT_DIR", "opusclip_output"))
     )

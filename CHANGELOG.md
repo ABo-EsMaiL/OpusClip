@@ -15,3 +15,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Base exception hierarchy (`OpusClipError`) and pipeline context definitions.
 - CI/CD workflows, pre-commit config, and issue templates.
 - Implementation 13-phase workflow defined.
+- Phase 6: Rendering pipeline completed. `FFmpegOptimizedRenderer` (single-pass) and `FFmpegLegacyRenderer` (two-pass) implemented. `broll.py`, `validator.py`, `text_cleaner.py`, and `ass_builder.py` completed. Resource leaks fixed with `try/finally` guards. Intermediate scan file eliminated in optimized renderer.
+- Phase 7: Integration, CLI & End-to-End pipeline. Concrete `Pipeline` class with 10-step orchestration, progress reporting, and structured error handling. `ProviderFactory` with full dependency injection. `cli.py` with argparse, `__main__.py` entry point. `LocalFileProvider` and `YouTubeProvider` concrete input providers. `PipelineResult` and `ClipResult` dataclasses for structured pipeline output. Progress reporting (`[1/10]...`) for each stage. Audio WAV cleanup after transcription. `pipeline_summary.json` generated per run.

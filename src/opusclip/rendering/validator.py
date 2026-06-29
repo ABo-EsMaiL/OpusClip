@@ -5,6 +5,7 @@ Validation utilities for checking final rendered output using ffprobe.
 import json
 from pathlib import Path
 from ..exceptions import RenderingError
+from ..subprocess_utils import run_ffprobe
 
 
 def validate_rendered_video(path: Path, expected_width: int, expected_height: int) -> None:
@@ -22,24 +23,14 @@ def validate_rendered_video(path: Path, expected_width: int, expected_height: in
     if not path.exists():
         raise RenderingError(f"Output video missing at {path}")
 
-    cmd = [
-        "ffprobe",
-        "-v",
-        "quiet",
-        "-print_format",
-        "json",
-        "-show_streams",
-        "-show_format",
-        str(path),
-    ]
-
-    # We use subprocess directly here since run_ffmpeg expects ffmpeg binary.
-    import subprocess
-
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except subprocess.CalledProcessError as e:
-        raise RenderingError(f"ffprobe validation failed for {path}: {e.stderr}")
+        r = run_ffprobe([
+            "-v", "quiet", "-print_format", "json",
+            "-show_streams", "-show_format",
+            str(path),
+        ])
+    except Exception as e:
+        raise RenderingError(f"ffprobe validation failed for {path}: {e}") from e
 
     try:
         data = json.loads(r.stdout)
