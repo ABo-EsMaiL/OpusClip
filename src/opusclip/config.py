@@ -27,6 +27,10 @@ class PipelineConfig:
     # Logging
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 
+    # Output Resolution
+    target_width: int = 1080
+    target_height: int = 1920
+
     # Magic Numbers / Tunables
     clip_crf: int = 20
     raw_clip_crf: int = 22  # CRF for the intermediate raw extract (ultrafast preset)
