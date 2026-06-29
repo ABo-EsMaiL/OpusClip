@@ -5,9 +5,15 @@ Implements :class:`~opusclip.face_detection.base.FaceDetector` using the
 MediaPipe Tasks vision API. Replaces the legacy dlib HOG detector with a
 modern, GPU-friendly solution that also exposes facial blendshapes (used to
 infer mouth-open score without extra landmark arithmetic).
+
+The required ``face_landmarker.task`` model (~15 MB) is automatically
+downloaded from the MediaPipe model zoo on first use if not already
+present at the configured path.
 """
 
 import os
+import urllib.request
+from pathlib import Path
 
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
@@ -16,6 +22,12 @@ from mediapipe.tasks.python import vision as mp_vision
 from .base import FaceDetector, FaceResult, VideoFrame
 from ..exceptions import FaceDetectionError
 
+# https://developers.google.com/mediapipe/solutions/vision/face_landmarker
+_FACE_LANDMARKER_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+)
+
 
 class MediaPipeFaceDetector(FaceDetector):
     """Face detector backed by MediaPipe FaceLandmarker.
@@ -23,6 +35,9 @@ class MediaPipeFaceDetector(FaceDetector):
     Detects faces in a single video frame and converts normalised MediaPipe
     landmarks into pixel-space bounding boxes and landmark coordinates
     compatible with :class:`~opusclip.face_detection.base.FaceResult`.
+
+    The model file is auto-downloaded from the MediaPipe model zoo on first
+    initialisation if it does not exist at *model_asset_path*.
 
     Args:
         model_asset_path: Absolute or relative path to the
@@ -33,18 +48,27 @@ class MediaPipeFaceDetector(FaceDetector):
     def __init__(self, model_asset_path: str, num_faces: int = 10) -> None:
         """Load and initialise the MediaPipe FaceLandmarker.
 
+        Downloads the model automatically if it is not found at the given path.
+
         Args:
             model_asset_path: Path to the ``.task`` model bundle.
             num_faces: Upper bound on detected faces per frame.
 
         Raises:
-            RuntimeError: If the model file does not exist at the given path.
+            FaceDetectionError: If the model could not be found or downloaded.
         """
         if not os.path.exists(model_asset_path):
-            raise FaceDetectionError(
-                f"MediaPipe model not found: {model_asset_path!r}. "
-                "Download face_landmarker.task from the MediaPipe model zoo."
-            )
+            print(f"Downloading face_landmarker.task (~15 MB) ...")
+            try:
+                urllib.request.urlretrieve(_FACE_LANDMARKER_URL, model_asset_path)
+            except Exception as exc:
+                raise FaceDetectionError(
+                    f"MediaPipe model not found: {model_asset_path!r} "
+                    f"and auto-download failed: {exc}. "
+                    "Download manually from: " + _FACE_LANDMARKER_URL
+                ) from exc
+            size_mb = os.path.getsize(model_asset_path) / 1_048_576
+            print(f"  Downloaded ({size_mb:.1f} MB)")
 
         base_options = mp_python.BaseOptions(model_asset_path=model_asset_path)
         options = mp_vision.FaceLandmarkerOptions(
