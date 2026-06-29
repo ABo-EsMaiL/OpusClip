@@ -186,19 +186,19 @@
 
 **Purpose**: Write unit tests and integration tests for all modules. Corresponds to plan.md Phase 9 - Testing.
 
-- [ ] T046 [P] Create `tests/__init__.py` and `tests/conftest.py` with shared fixtures (mock `PipelineConfig`, sample transcript data, sample `FaceResult`)
-- [ ] T047 [P] Create `tests/unit/test_config.py` — test `PipelineConfig` construction, `from_env()` loading, default values, and validation of invalid inputs
-- [ ] T048 [P] Create `tests/unit/test_input_validator.py` — test path traversal rejection, valid/invalid YouTube URLs, safe filename resolution
-- [ ] T049 [P] Create `tests/unit/test_text_cleaner.py` — test Arabic cleaning, emoji removal, whitelist pass-through, edge cases (empty string, only emojis)
-- [ ] T050 [P] Create `tests/unit/test_word_repair.py` — test `fill_missing_words()` with known gap scenarios, no-gap scenarios, and edge cases (empty segments)
-- [ ] T051 [P] Create `tests/unit/test_ass_builder.py` — test ASS file generation for Arabic-only, English-only, and bilingual clips. Verify correct style selection and karaoke timing
-- [ ] T052 [P] Create `tests/unit/test_smart_director.py` — test `SmartDirector` state transitions: no-face → single-face → multi-face → speaking detection
-- [ ] T053 [P] Create `tests/unit/test_temp_manager.py` — test `TempDir` creation, cleanup on normal exit, cleanup on exception
-- [ ] T054 [P] Create `tests/unit/test_font_manager.py` — test font path resolution for all bundled fonts, missing font error
-- [ ] T055 Create `tests/unit/test_exceptions.py` — test exception hierarchy and `OpusClipError` base class
-- [ ] T056 Create `tests/integration/test_pipeline_config.py` — test full pipeline construction with all providers injected, verify no import errors
-- [ ] T057 Create `tests/integration/test_cli.py` — test CLI argument parsing, `--help` output, invalid argument rejection
-- [ ] T058 Create `tests/manual_validation_checklist.md` — document manual tests that require the target server: transcription accuracy, subtitle sync, crop quality, batch processing, 4-hour video handling
+- [X] T046 [P] Create `tests/__init__.py` and `tests/conftest.py` with shared fixtures (mock `PipelineConfig`, sample transcript data, sample `FaceResult`)
+- [X] T047 [P] Create `tests/unit/test_config.py` — test `PipelineConfig` construction, `from_env()` loading, default values, and validation of invalid inputs
+- [X] T048 [P] Create `tests/unit/test_input_validator.py` — test path traversal rejection, valid/invalid YouTube URLs, safe filename resolution
+- [X] T049 [P] Create `tests/unit/test_text_cleaner.py` — test Arabic cleaning, emoji removal, whitelist pass-through, edge cases (empty string, only emojis)
+- [X] T050 [P] Create `tests/unit/test_word_repair.py` — test `fill_missing_words()` with known gap scenarios, no-gap scenarios, and edge cases (empty segments)
+- [X] T051 [P] Create `tests/unit/test_ass_builder.py` — test ASS file generation for Arabic-only, English-only, and bilingual clips. Verify correct style selection and karaoke timing
+- [X] T052 [P] Create `tests/unit/test_smart_director.py` — test `SmartDirector` state transitions: no-face → single-face → multi-face → speaking detection
+- [X] T053 [P] Create `tests/unit/test_temp_manager.py` — test `TempDir` creation, cleanup on normal exit, cleanup on exception
+- [X] T054 [P] Create `tests/unit/test_font_manager.py` — test font path resolution for all bundled fonts, missing font error
+- [X] T055 Create `tests/unit/test_exceptions.py` — test exception hierarchy and `OpusClipError` base class
+- [X] T056 Create `tests/integration/test_pipeline_construction.py` — test `ProviderFactory.create_pipeline()` wiring with mock providers
+- [X] T057 Create `tests/integration/test_cli_integration.py` — test CLI argument parsing, `--help` output, multi-source, resume, error handling, batch failures
+- [X] T058 Create `tests/manual_validation_checklist.md` — document manual tests that require the target server: ffmpeg, GPU, batch processing, resume, edge cases
 
 **Checkpoint**: All unit tests pass. Integration tests verify module composition. Manual validation checklist documents what requires runtime testing.
 

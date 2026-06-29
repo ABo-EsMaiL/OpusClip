@@ -167,3 +167,32 @@ def mock_pipeline(sample_config, sample_transcript, sample_clips, tmp_path) -> P
         video_renderer=video_renderer,
         metadata_generator=metadata_generator,
     )
+
+
+@pytest.fixture
+def sample_word_timings() -> list[WordTiming]:
+    return [
+        WordTiming(word="Hello", start=0.0, end=0.5),
+        WordTiming(word="world", start=0.6, end=1.0),
+        WordTiming(word="مرحبا", start=2.0, end=2.5),
+        WordTiming(word="بالعالم", start=2.6, end=3.0),
+    ]
+
+
+@pytest.fixture
+def sample_face_results() -> list[FaceResult]:
+    return [
+        FaceResult(bbox=(100, 50, 200, 300), landmarks=[(200, 200)], mouth_open_score=0.0),
+        FaceResult(bbox=(400, 100, 180, 280), landmarks=[(490, 240)], mouth_open_score=0.0),
+        FaceResult(bbox=(800, 60, 190, 290), landmarks=[(895, 205)], mouth_open_score=0.8),
+    ]
+
+
+@pytest.fixture
+def sample_clip_metadata() -> ClipMetadata:
+    return ClipMetadata(
+        title="Test Clip",
+        description="A test clip description",
+        hashtags=["#test", "#opusclip"],
+        category="Education",
+    )
