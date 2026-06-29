@@ -7,6 +7,7 @@ intended for network calls and external API requests.
 
 import time
 import functools
+import traceback
 from typing import Callable, TypeVar, Any
 
 T = TypeVar("T")
@@ -51,9 +52,13 @@ def with_retry(
                     return func(*args, **kwargs)
                 except exceptions as exc:
                     last_exc = exc
+                    print(f"  [retry] Attempt {attempt}/{attempts} failed — {type(exc).__name__}: {exc}")
                     if attempt < attempts:
+                        print(f"  [retry] Retrying in {current_delay:.1f}s ...")
                         time.sleep(current_delay)
                         current_delay *= backoff_factor
+            print(f"\n  [retry] All {attempts} attempts exhausted.")
+            traceback.print_exception(type(last_exc), last_exc, last_exc.__traceback__)
             raise last_exc
 
         return wrapper

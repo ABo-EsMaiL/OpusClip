@@ -6,6 +6,7 @@ OpenAI-compatible API to identify the most viral segments from a transcript.
 """
 
 import json
+import traceback
 from typing import Literal
 
 from openai import OpenAI, OpenAIError
@@ -105,23 +106,61 @@ class LLMClipSelector(ClipSelector):
             exceptions=(OpenAIError, json.JSONDecodeError, ValueError),
         )
         def _fetch_clips() -> list[dict[str, object]]:
-            resp = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": clip_system},
-                    {"role": "user", "content": f"Transcript:\n\n{tx_text}"},
-                ],
-                temperature=_LLM_TEMPERATURE,
-            )
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": clip_system},
+                        {"role": "user", "content": f"Transcript:\n\n{tx_text}"},
+                    ],
+                    temperature=_LLM_TEMPERATURE,
+                )
+            except OpenAIError as e:
+                status = getattr(e, "status_code", None)
+                if status is None:
+                    status = getattr(e, "status", None)
+                body = getattr(e, "body", None)
+                request_id = getattr(e, "request_id", None)
+                print("  [OpenAI Error]")
+                if status is not None:
+                    print(f"    status_code : {status}")
+                if request_id is not None:
+                    print(f"    request_id  : {request_id}")
+                if body is not None:
+                    import json as _json
+                    print(f"    body        : {_json.dumps(body, indent=2, ensure_ascii=False)}")
+                raise
+
             raw_json = resp.choices[0].message.content or ""
             parsed = extract_json_array(raw_json)
             if parsed is None:
+                print("  [JSON Parse Error] Failed to extract JSON array from LLM response.")
+                print(f"    Raw response ({len(raw_json)} chars):")
+                print(f"    {raw_json[:2000]}")
+                if len(raw_json) > 2000:
+                    print(f"    ... ({len(raw_json) - 2000} more chars)")
+                try:
+                    failed_path = config.output_dir / "llm_failed_response.txt"
+                    failed_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(failed_path, "w", encoding="utf-8") as f:
+                        f.write(raw_json)
+                    print(f"    Full response saved to: {failed_path}")
+                except Exception:
+                    pass
                 raise ValueError("Failed to parse JSON array from LLM response.")
             return parsed  # type: ignore[return-value]
 
         try:
             clips_raw = _fetch_clips()
         except Exception as exc:
+            print("\n  [Clip Selection Failed]")
+            print(f"    Type  : {type(exc).__name__}")
+            print(f"    Reason: {exc}")
+            cause = exc.__cause__
+            while cause is not None:
+                print(f"    Caused by: {type(cause).__name__}: {cause}")
+                cause = cause.__cause__
+            traceback.print_exception(type(exc), exc, exc.__traceback__)
             raise ClipSelectionError(
                 f"Clip selection failed after {config.api_retry_attempts} attempts."
             ) from exc
