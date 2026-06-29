@@ -1,3 +1,5 @@
+"""Pipeline orchestrator — runs the 10-step video-to-clips pipeline."""
+
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +40,18 @@ except ImportError:
 
 @dataclass
 class PipelineResult:
+    """Structured output from a single pipeline run.
+
+    Attributes:
+        clips: List of per-clip results.
+        output_dir: Root output directory for this run.
+        duration: Source video duration in seconds.
+        total_clips: Number of clips attempted.
+        successful_clips: Number of clips rendered successfully.
+        failed_clips: Number of clips that failed.
+        source: Original input source string.
+        error: Top-level error message if the pipeline aborted.
+    """
     clips: List["ClipResult"] = field(default_factory=list)
     output_dir: Optional[Path] = None
     duration: float = 0.0
@@ -50,6 +64,16 @@ class PipelineResult:
 
 @dataclass
 class ClipResult:
+    """Result of rendering a single clip.
+
+    Attributes:
+        number: 1-based index within the output clip list.
+        video_path: Path to the rendered video file.
+        thumbnail_path: Path to the thumbnail image.
+        metadata: Generated social-media metadata, if available.
+        success: Whether this clip was rendered successfully.
+        error: Error message if rendering failed.
+    """
     number: int
     video_path: Path
     thumbnail_path: Path
@@ -90,6 +114,17 @@ def _sanitize_source_name(source: str) -> str:
 
 
 class Pipeline:
+    """Orchestrates the full video-to-clips pipeline.
+
+    Accepts all providers via constructor injection (dependency injection).
+    Runs a 10-step pipeline: validate → read metadata → transcribe → repair
+    → select clips → render subtitles → render videos → validate → generate
+    metadata → produce outputs.
+
+    Supports single runs, batch processing via ``run_batch()``, and
+    step-level resume via ``CacheManager``.
+    """
+
     def __init__(
         self,
         config: PipelineConfig,

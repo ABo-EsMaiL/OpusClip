@@ -1,3 +1,5 @@
+"""Input provider contracts — abstract interface and metadata dataclass."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path

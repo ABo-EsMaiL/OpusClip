@@ -1,3 +1,5 @@
+"""API key loader — reads OPUSCLIP_API_KEY from the environment securely."""
+
 import os
 from .exceptions import ConfigurationError
 

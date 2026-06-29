@@ -1,3 +1,5 @@
+"""Pipeline configuration dataclass with environment-aware defaults."""
+
 import os
 from dataclasses import dataclass, field
 from pathlib import Path

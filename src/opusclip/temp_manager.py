@@ -1,3 +1,5 @@
+"""Temporary directory context manager with automatic cleanup."""
+
 import tempfile
 import shutil
 from pathlib import Path

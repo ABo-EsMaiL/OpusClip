@@ -1,3 +1,5 @@
+"""Font resolution — resolves bundled TTF font paths for subtitle rendering."""
+
 from pathlib import Path
 from .exceptions import ConfigurationError
 

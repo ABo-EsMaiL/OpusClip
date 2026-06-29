@@ -11,6 +11,11 @@ from .exceptions import OpusClipError
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build and return the CLI argument parser.
+
+    Supports single or multiple video sources, renderer backend selection,
+    encoder override, resume flag, and log-level configuration.
+    """
     parser = argparse.ArgumentParser(
         prog="opusclip",
         description="AI-powered automatic short-video pipeline from long-form content.",
@@ -70,6 +75,14 @@ def _dictify(result: PipelineResult) -> dict[str, Any]:
 
 
 def run_cli(argv: Optional[List[str]] = None) -> int:
+    """Execute the CLI pipeline for one or more video sources.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv[1:]).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -112,4 +125,5 @@ def run_cli(argv: Optional[List[str]] = None) -> int:
 
 
 def main() -> None:
+    """CLI entry point. Parses arguments and runs the pipeline."""
     sys.exit(run_cli())

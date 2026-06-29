@@ -7,7 +7,14 @@ from ..exceptions import InputValidationError
 
 
 class LocalFileProvider(InputProvider):
+    """Acquires a video from a local file path.
+
+    Validates the path, copies the file to the output directory, and extracts
+    metadata via ffprobe.
+    """
+
     def acquire(self, source: str, output_dir: Path) -> VideoMetadata:
+        """Copy the local video to output_dir and extract metadata via ffprobe."""
         src = validate_video_path(source)
         dest = output_dir / src.name
         dest.parent.mkdir(parents=True, exist_ok=True)

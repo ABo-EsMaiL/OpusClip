@@ -25,6 +25,12 @@ _FADE_DURATION = 0.4
 
 
 class FFmpegLegacyRenderer(VideoRenderer):
+    """Two-pass FFmpeg renderer matching the original notebook behavior.
+
+    Serves as a baseline for verifying the single-pass optimized renderer
+    produces identical output quality.
+    """
+
     def __init__(self, face_detector: FaceDetector, config: PipelineConfig):
         self.face_detector = face_detector
         self.config = config

@@ -1,3 +1,5 @@
+"""Input validation — verifies video paths and YouTube URLs securely."""
+
 import urllib.parse
 from pathlib import Path
 from .exceptions import InputValidationError

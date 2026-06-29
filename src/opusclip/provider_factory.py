@@ -1,3 +1,5 @@
+"""Provider factory — wires all pipeline dependencies via dependency injection."""
+
 import urllib.parse
 
 from .config import PipelineConfig
@@ -29,6 +31,11 @@ class ProviderFactory:
         self.config = config
 
     def create_input_provider(self, source: str) -> InputProvider:
+        """Resolve the input provider based on the source string.
+
+        Returns a :class:`YouTubeProvider` for YouTube URLs and a
+        :class:`LocalFileProvider` for everything else.
+        """
         parsed = urllib.parse.urlparse(source)
         netloc = parsed.netloc.lower()
         if parsed.scheme in ("http", "https") and ("youtube.com" in netloc or "youtu.be" in netloc):
@@ -36,12 +43,14 @@ class ProviderFactory:
         return LocalFileProvider()
 
     def create_transcription_provider(self) -> TranscriptionProvider:
+        """Create a WhisperProvider configured from PipelineConfig."""
         return WhisperProvider(
             model_size=self.config.whisper_model,
             device=self.config.whisper_device,
         )
 
     def create_clip_selector(self) -> ClipSelector:
+        """Create an LLM-based clip selector using the configured API credentials."""
         api_key = load_api_key()
         return LLMClipSelector(
             api_key=api_key,
@@ -50,20 +59,24 @@ class ProviderFactory:
         )
 
     def create_face_detector(self) -> FaceDetector:
+        """Create a MediaPipe face detector with the configured model path."""
         return MediaPipeFaceDetector(
             model_asset_path=self.config.mediapipe_model_path,
         )
 
     def create_subtitle_renderer(self) -> SubtitleRenderer:
+        """Create an ASS subtitle renderer using the bundled fonts."""
         font_manager = FontManager()
         return ASSSubtitleRenderer(font_manager=font_manager)
 
     def create_video_renderer(self, face_detector: FaceDetector) -> VideoRenderer:
+        """Create a video renderer (optimized or legacy) based on PipelineConfig."""
         if self.config.renderer_backend == "legacy":
             return FFmpegLegacyRenderer(face_detector=face_detector, config=self.config)
         return FFmpegOptimizedRenderer(face_detector=face_detector, config=self.config)
 
     def create_metadata_generator(self) -> MetadataGenerator:
+        """Create an LLM-based metadata generator using the configured API credentials."""
         api_key = load_api_key()
         return LLMMetadataGenerator(
             api_key=api_key,
@@ -73,6 +86,14 @@ class ProviderFactory:
         )
 
     def create_pipeline(self, source: str) -> Pipeline:
+        """Wire all providers and return a fully configured Pipeline.
+
+        Args:
+            source: Video source path or URL (used to select the input provider).
+
+        Returns:
+            A :class:`Pipeline` ready to call ``.run()``.
+        """
         input_provider = self.create_input_provider(source)
         transcription_provider = self.create_transcription_provider()
         clip_selector = self.create_clip_selector()

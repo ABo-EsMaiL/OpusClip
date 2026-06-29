@@ -5,6 +5,16 @@ from dataclasses import dataclass, field
 
 @dataclass
 class PipelineMetrics:
+    """Collects timing and counter metrics for a single pipeline run.
+
+    Attributes:
+        stages: Map of stage name to elapsed wall-clock time in seconds.
+        clip_renders: Map of clip number to render duration in seconds.
+        total_duration: Total pipeline wall-clock time in seconds.
+        api_calls: Number of LLM API calls made.
+        api_retries: Number of LLM API retries attempted.
+        failures: Number of stage/clip failures encountered.
+    """
     stages: dict[str, float] = field(default_factory=dict)
     clip_renders: dict[int, float] = field(default_factory=dict)
     total_duration: float = 0.0

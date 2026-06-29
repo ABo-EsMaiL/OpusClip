@@ -6,7 +6,14 @@ from ..exceptions import InputValidationError
 
 
 class YouTubeProvider(InputProvider):
+    """Acquires a video from YouTube using yt-dlp.
+
+    Validates the URL, downloads the best 1080p stream with audio, and
+    extracts metadata via yt-dlp's --print capability.
+    """
+
     def acquire(self, source: str, output_dir: Path) -> VideoMetadata:
+        """Download the YouTube video and extract metadata via yt-dlp."""
         validate_youtube_url(source)
         output_dir.mkdir(parents=True, exist_ok=True)
         out_template = str(output_dir / "%(title)s.%(ext)s")

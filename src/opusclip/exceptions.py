@@ -1,3 +1,5 @@
+"""OpusClip exception hierarchy — all pipeline errors inherit from OpusClipError."""
+
 class OpusClipError(Exception):
     """Base exception for all OpusClip errors."""
 

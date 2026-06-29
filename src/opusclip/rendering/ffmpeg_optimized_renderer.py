@@ -25,6 +25,8 @@ _FADE_DURATION = 0.4
 
 
 class FFmpegOptimizedRenderer(VideoRenderer):
+    """Single-pass FFmpeg renderer that merges subtitles, audio, and fades in one pipe."""
+
     def __init__(self, face_detector: FaceDetector, config: PipelineConfig):
         self.face_detector = face_detector
         self.config = config
