@@ -16,7 +16,7 @@ from ..clip_selection.base import ClipCandidate
 from ..face_detection.base import FaceDetector, FaceResult
 from ..face_detection.smart_director import SmartDirector
 from .broll import make_broll_frame
-from ..utils.ffmpeg_utils import run_ffmpeg, FFmpegPipe
+from ..utils.ffmpeg_utils import run_ffmpeg, FFmpegPipe, build_encoder_args, check_encoder_available
 from ..exceptions import RenderingError
 
 from ..config import PipelineConfig
@@ -28,6 +28,17 @@ class FFmpegOptimizedRenderer(VideoRenderer):
     def __init__(self, face_detector: FaceDetector, config: PipelineConfig):
         self.face_detector = face_detector
         self.config = config
+        self._encoder = self._resolve_encoder()
+
+    def _resolve_encoder(self) -> str:
+        enc = self.config.encoder
+        if enc != "libx264" and not check_encoder_available(enc):
+            import warnings
+            warnings.warn(
+                f"Requested encoder '{enc}' is unavailable. Falling back to libx264."
+            )
+            return "libx264"
+        return enc
 
     def render_clip(
         self, context: PipelineContext, clip: ClipCandidate, subtitle_path: Path
@@ -43,7 +54,6 @@ class FFmpegOptimizedRenderer(VideoRenderer):
 
         base = f"clip_{n:02d}"
         raw_path = work_dir / f"{base}_raw.mp4"
-        silent_path = work_dir / f"{base}_silent.mp4"
         audio_path = work_dir / f"{base}_audio.aac"
         safe_ass = work_dir / f"{base}_safe.ass"
         thumb_path = clips_dir / f"{base}_thumb.jpg"
@@ -62,6 +72,7 @@ class FFmpegOptimizedRenderer(VideoRenderer):
             PRE_SEEK = max(0.0, c_start - 10.0)
             FINE_SEEK = c_start - PRE_SEEK
 
+            raw_encoder = build_encoder_args(self._encoder, self.config.raw_clip_crf, "ultrafast", raw_extract=True)
             run_ffmpeg(
                 [
                     "ffmpeg",
@@ -74,12 +85,7 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                     f"{FINE_SEEK:.3f}",
                     "-t",
                     f"{duration + 0.5:.3f}",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "ultrafast",
-                    "-crf",
-                    str(self.config.raw_clip_crf),
+                    *raw_encoder,
                     "-c:a",
                     "aac",
                     "-b:a",
@@ -105,7 +111,7 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                 ]
             )
 
-            # ── Step 2: Single-pass Face Scan & Render
+            # ── Step 2: Single-pass Face Scan & Render with subtitles + audio
             SCAN_H = min(480, context.video_height)
             scan_scale = SCAN_H / context.video_height
             SCAN_W = int(context.video_width * scan_scale)
@@ -132,6 +138,11 @@ class FFmpegOptimizedRenderer(VideoRenderer):
             fi = 0
             last_faces = []
 
+            shutil.copy(subtitle_path, safe_ass)
+
+            vf = f"ass={safe_ass},fade=t=in:st=0:d={_FADE_DURATION},fade=t=out:st={max(0, duration - _FADE_DURATION):.2f}:d={_FADE_DURATION}"
+            pipe_encoder = build_encoder_args(self._encoder, self.config.clip_crf, "fast")
+
             cmd = [
                 "ffmpeg",
                 "-y",
@@ -147,15 +158,19 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                 str(context.video_fps),
                 "-i",
                 "pipe:0",
-                "-vcodec",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                str(self.config.clip_crf),
+                "-i",
+                str(audio_path),
+                "-vf",
+                vf,
+                *pipe_encoder,
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
                 "-pix_fmt",
                 "yuv420p",
-                str(silent_path),
+                "-shortest",
+                str(final_path),
             ]
 
             with FFmpegPipe(cmd) as pipe:
@@ -165,17 +180,12 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                         if not ok:
                             break
 
-                        # Instead of a separate scan video, just resize the frame in memory
-                        if fi % 3 == 0:  # FACE_DETECT_EVERY = 3
+                        if fi % 3 == 0:
                             scan_frame = cv2.resize(
                                 frame, (SCAN_W, SCAN_H), interpolation=cv2.INTER_LINEAR
                             )
                             last_faces = self.face_detector.detect(scan_frame)
 
-                        # Scale coordinates from SCAN space back to original space for the director
-                        # Wait, detect() returns FaceResult. MediaPipe operates on the frame it's given.
-                        # MediaPipeFaceDetector currently returns coordinates in the pixel space of the given frame.
-                        # We must scale them back up so SmartDirector gets coordinates in the full frame space!
                         scaled_faces = []
                         for f in last_faces:
                             x, y, w, h = f.bbox
@@ -187,7 +197,7 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                                         int(w / scan_scale),
                                         int(h / scan_scale),
                                     ),
-                                    landmarks=[],  # Skip scaling landmarks, director only needs bbox and mouth
+                                    landmarks=[],
                                     mouth_open_score=f.mouth_open_score,
                                 )
                             )
@@ -217,65 +227,24 @@ class FFmpegOptimizedRenderer(VideoRenderer):
                                     best_frame = resized.copy()
 
                         try:
-                            pipe.write(resized.tobytes())
-                        except BrokenPipeError as e:
-                            raise RenderingError(
-                                "FFmpeg pipe closed unexpectedly during rendering."
-                            ) from e
+                            pipe.stdin.write(resized.tobytes())
+                        except BrokenPipeError:
+                            try:
+                                pipe.stdin.close()
+                            except OSError:
+                                pass
+                            rc = pipe.process.wait(timeout=30)
+                            if rc != 0:
+                                raise RenderingError(
+                                    f"FFmpeg pipe failed with exit code {rc} during rendering."
+                                ) from None
+                            break
                         fi += 1
                 finally:
                     raw_cap.release()
 
             if best_frame is not None:
                 cv2.imwrite(str(thumb_path), best_frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
-
-            # ── Step 3: Subtitles + merge
-            shutil.copy(subtitle_path, safe_ass)
-
-            vf = f"subtitles={safe_ass},fade=t=in:st=0:d={_FADE_DURATION},fade=t=out:st={max(0, duration - _FADE_DURATION):.2f}:d={_FADE_DURATION}"
-
-            try:
-                run_ffmpeg(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        str(silent_path),
-                        "-i",
-                        str(audio_path),
-                        "-vf",
-                        vf,
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "fast",
-                        "-crf",
-                        str(self.config.clip_crf),
-                        "-c:a",
-                        "aac",
-                        "-b:a",
-                        "128k",
-                        "-shortest",
-                        str(final_path),
-                    ]
-                )
-            except RenderingError:
-                run_ffmpeg(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        str(silent_path),
-                        "-i",
-                        str(audio_path),
-                        "-c:v",
-                        "copy",
-                        "-c:a",
-                        "copy",
-                        "-shortest",
-                        str(final_path),
-                    ]
-                )
 
             return RenderedClip(
                 path=final_path,
@@ -285,7 +254,7 @@ class FFmpegOptimizedRenderer(VideoRenderer):
             )
 
         finally:
-            for p in [raw_path, silent_path, audio_path, safe_ass]:
+            for p in [raw_path, audio_path, safe_ass]:
                 try:
                     os.remove(p)
                 except OSError:

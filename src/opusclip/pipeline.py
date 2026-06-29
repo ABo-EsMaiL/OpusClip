@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -13,6 +14,7 @@ from .subtitle.text_cleaner import clean_for_subtitle
 from .rendering.base import VideoRenderer
 from .rendering.validator import validate_rendered_video
 from .metadata.base import MetadataGenerator, ClipMetadata
+from .metrics import PipelineMetrics
 from .exceptions import (
     OpusClipError,
     InputValidationError,
@@ -84,6 +86,7 @@ class Pipeline:
         self.subtitle_renderer = subtitle_renderer
         self.video_renderer = video_renderer
         self.metadata_generator = metadata_generator
+        self.metrics: PipelineMetrics = PipelineMetrics()
         self._source: str = ""
         self._ctx: Optional[PipelineContext] = None
 
@@ -99,22 +102,41 @@ class Pipeline:
         self._ctx.metadata_output_dir.mkdir(parents=True, exist_ok=True)
 
         result = PipelineResult(output_dir=self._ctx.output_dir)
+        self.metrics = PipelineMetrics()
+        self.metrics.start()
 
         try:
-            self._step_1_validate_input(source)
-            self._step_2_read_metadata()
-            self._step_3_transcribe_audio()
-            self._step_4_repair_transcript()
-            self._step_5_select_clips()
-            self._step_6_render_subtitles()
-            self._step_7_render_videos(result)
-            self._step_8_validate_rendered(result)
-            self._step_9_generate_metadata(result)
-            self._step_10_produce_final(result)
+            with self.metrics.measure_stage("validate_input"):
+                self._step_1_validate_input(source)
+            with self.metrics.measure_stage("read_metadata"):
+                self._step_2_read_metadata()
+            with self.metrics.measure_stage("transcribe_audio"):
+                self._step_3_transcribe_audio()
+            with self.metrics.measure_stage("repair_transcript"):
+                self._step_4_repair_transcript()
+            with self.metrics.measure_stage("select_clips"):
+                self._step_5_select_clips()
+            with self.metrics.measure_stage("render_subtitles"):
+                self._step_6_render_subtitles()
+            with self.metrics.measure_stage("render_videos"):
+                self._step_7_render_videos(result)
+            with self.metrics.measure_stage("validate_rendered"):
+                self._step_8_validate_rendered(result)
+            with self.metrics.measure_stage("generate_metadata"):
+                self._step_9_generate_metadata(result)
+            with self.metrics.measure_stage("produce_final"):
+                self._step_10_produce_final(result)
         except OpusClipError:
             raise
         except Exception as exc:
             raise OpusClipError(f"Pipeline failed at an unexpected point: {exc}") from exc
+        finally:
+            self.metrics.finish()
+            self.metrics.failures = result.failed_clips
+            # TODO: Wire metrics.api_calls / api_retries into LLM providers
+            # (WhisperProvider, LLMClipSelector, LLMMetadataGenerator) for
+            # accurate retry and API usage tracking during pipeline execution.
+            print(self.metrics.report())
 
         return result
 
@@ -321,7 +343,10 @@ class Pipeline:
                 ))
                 continue
             try:
+                t0 = time.monotonic()
                 rendered = self.video_renderer.render_clip(self._ctx, candidate, sub_path)
+                elapsed = time.monotonic() - t0
+                self.metrics.record_clip_render(num, elapsed)
                 result.clips.append(ClipResult(
                     number=num,
                     video_path=rendered.path,

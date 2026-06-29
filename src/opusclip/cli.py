@@ -23,6 +23,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Renderer backend to use.",
     )
     parser.add_argument(
+        "--encoder", type=str, default=None,
+        help="FFmpeg video encoder (e.g. libx264, h264_nvenc). Default: libx264.",
+    )
+    parser.add_argument(
         "--log-level", type=str, default=None,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         help="Logging verbosity level.",
@@ -68,6 +72,8 @@ def run_cli(argv: Optional[List[str]] = None) -> int:
         overrides["max_clips"] = args.max_clips
     if args.renderer is not None:
         overrides["renderer_backend"] = args.renderer
+    if args.encoder is not None:
+        overrides["encoder"] = args.encoder
     if args.log_level is not None:
         overrides["log_level"] = args.log_level
 

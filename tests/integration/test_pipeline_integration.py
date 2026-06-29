@@ -100,19 +100,22 @@ class TestCli:
         assert args.min_clips is None
         assert args.max_clips is None
         assert args.renderer is None
+        assert args.encoder is None
         assert args.log_level is None
 
     def test_build_parser_all_options(self):
         parser = build_parser()
         args = parser.parse_args([
             "input.mp4", "--output", "out/", "--min-clips", "6",
-            "--max-clips", "10", "--renderer", "legacy", "--log-level", "DEBUG",
+            "--max-clips", "10", "--renderer", "legacy",
+            "--encoder", "h264_nvenc", "--log-level", "DEBUG",
         ])
         assert args.input == "input.mp4"
         assert args.output == "out/"
         assert args.min_clips == 6
         assert args.max_clips == 10
         assert args.renderer == "legacy"
+        assert args.encoder == "h264_nvenc"
         assert args.log_level == "DEBUG"
 
     def test_renderer_maps_to_renderer_backend(self):
@@ -136,6 +139,13 @@ class TestCli:
         config2 = PipelineConfig.from_env(**overrides2)
         assert config2.renderer_backend == "optimized"
         assert config2.encoder == "libx264"
+
+    def test_encoder_cli_mapping(self):
+        """Verify CLI --encoder maps to encoder config."""
+        overrides = {"encoder": "h264_nvenc"}
+        config = PipelineConfig.from_env(**overrides)
+        assert config.encoder == "h264_nvenc"
+        assert config.renderer_backend == "optimized"  # unchanged
 
 
 class TestProviderFactory:
@@ -201,3 +211,49 @@ class TestPipelineContext:
         assert hasattr(ctx, "video_width")
         assert hasattr(ctx, "video_height")
         assert hasattr(ctx, "video_fps")
+
+
+class TestPipelineMetrics:
+    """Tests pipeline metrics collection during execution."""
+
+    def test_pipeline_collects_metrics(self, mock_pipeline, tmp_path):
+        from opusclip.metrics import PipelineMetrics
+        video_path = tmp_path / "input.mp4"
+        video_path.parent.mkdir(parents=True, exist_ok=True)
+        video_path.write_bytes(b"\x00" * 100)
+
+        with (
+            patch("opusclip.subprocess_utils.run_ffmpeg") as mock_ffmpeg,
+            patch("opusclip.rendering.validator.run_ffprobe") as mock_ffprobe,
+        ):
+            mock_ffmpeg.return_value.returncode = 0
+            mock_ffprobe.return_value.returncode = 0
+            mock_ffprobe.return_value.stdout = b'{"streams": [{"codec_type": "video", "width": 1080, "height": 1920}], "format": {"duration": "5.0"}}'
+            mock_pipeline.run(str(video_path))
+
+        assert isinstance(mock_pipeline.metrics, PipelineMetrics)
+        assert mock_pipeline.metrics.total_duration > 0
+        assert mock_pipeline.metrics.stages != {}
+        stage_names = list(mock_pipeline.metrics.stages.keys())
+        assert "render_videos" in stage_names
+        assert "validate_input" in stage_names
+        assert len(mock_pipeline.metrics.clip_renders) > 0
+
+    def test_metrics_report_output(self, mock_pipeline, tmp_path):
+        video_path = tmp_path / "input.mp4"
+        video_path.parent.mkdir(parents=True, exist_ok=True)
+        video_path.write_bytes(b"\x00" * 100)
+
+        with (
+            patch("opusclip.subprocess_utils.run_ffmpeg") as mock_ffmpeg,
+            patch("opusclip.rendering.validator.run_ffprobe") as mock_ffprobe,
+        ):
+            mock_ffmpeg.return_value.returncode = 0
+            mock_ffprobe.return_value.returncode = 0
+            mock_ffprobe.return_value.stdout = b'{"streams": [{"codec_type": "video", "width": 1080, "height": 1920}], "format": {"duration": "5.0"}}'
+            _ = mock_pipeline.run(str(video_path))
+
+        report = mock_pipeline.metrics.report()
+        assert "Total duration:" in report
+        assert "Clip renders" in report
+        assert "Stage timing" in report

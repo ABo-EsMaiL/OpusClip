@@ -16,7 +16,7 @@ from ..clip_selection.base import ClipCandidate
 from ..face_detection.base import FaceDetector
 from ..face_detection.smart_director import SmartDirector
 from .broll import make_broll_frame
-from ..utils.ffmpeg_utils import run_ffmpeg, FFmpegPipe
+from ..utils.ffmpeg_utils import run_ffmpeg, FFmpegPipe, build_encoder_args, check_encoder_available
 from ..exceptions import RenderingError
 from ..config import PipelineConfig
 
@@ -28,6 +28,17 @@ class FFmpegLegacyRenderer(VideoRenderer):
     def __init__(self, face_detector: FaceDetector, config: PipelineConfig):
         self.face_detector = face_detector
         self.config = config
+        self._encoder = self._resolve_encoder()
+
+    def _resolve_encoder(self) -> str:
+        enc = self.config.encoder
+        if enc != "libx264" and not check_encoder_available(enc):
+            import warnings
+            warnings.warn(
+                f"Requested encoder '{enc}' is unavailable. Falling back to libx264."
+            )
+            return "libx264"
+        return enc
 
     def render_clip(
         self, context: PipelineContext, clip: ClipCandidate, subtitle_path: Path
@@ -63,6 +74,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
             PRE_SEEK = max(0.0, c_start - 10.0)
             FINE_SEEK = c_start - PRE_SEEK
 
+            raw_encoder = build_encoder_args(self._encoder, self.config.raw_clip_crf, "ultrafast", raw_extract=True)
             run_ffmpeg(
                 [
                     "ffmpeg",
@@ -75,12 +87,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
                     f"{FINE_SEEK:.3f}",
                     "-t",
                     f"{duration + 0.5:.3f}",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "ultrafast",
-                    "-crf",
-                    str(self.config.raw_clip_crf),
+                    *raw_encoder,
                     "-c:a",
                     "aac",
                     "-b:a",
@@ -113,6 +120,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
             if SCAN_W % 2:
                 SCAN_W += 1
 
+            scan_encoder = build_encoder_args(self._encoder, 28, "ultrafast", raw_extract=True)
             run_ffmpeg(
                 [
                     "ffmpeg",
@@ -121,12 +129,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
                     str(raw_path),
                     "-vf",
                     f"scale={SCAN_W}:{SCAN_H}",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "ultrafast",
-                    "-crf",
-                    "28",
+                    *scan_encoder,
                     "-an",
                     str(scan_path),
                 ]
@@ -172,6 +175,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
             n_frames = len(frames_faces)
             fi = 0
 
+            pipe_encoder = build_encoder_args(self._encoder, self.config.clip_crf, "fast")
             cmd = [
                 "ffmpeg",
                 "-y",
@@ -187,12 +191,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
                 str(context.video_fps),
                 "-i",
                 "pipe:0",
-                "-vcodec",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                str(self.config.clip_crf),
+                *pipe_encoder,
                 "-pix_fmt",
                 "yuv420p",
                 str(silent_path),
@@ -237,7 +236,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
                                     best_frame = resized.copy()
 
                         try:
-                            pipe.write(resized.tobytes())
+                            pipe.stdin.write(resized.tobytes())
                         except BrokenPipeError as e:
                             raise RenderingError(
                                 "FFmpeg pipe closed unexpectedly during rendering."
@@ -255,6 +254,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
             vf = f"subtitles={safe_ass},fade=t=in:st=0:d={_FADE_DURATION},fade=t=out:st={max(0, duration - _FADE_DURATION):.2f}:d={_FADE_DURATION}"
 
             try:
+                merge_encoder = build_encoder_args(self._encoder, self.config.clip_crf, "fast")
                 run_ffmpeg(
                     [
                         "ffmpeg",
@@ -265,12 +265,7 @@ class FFmpegLegacyRenderer(VideoRenderer):
                         str(audio_path),
                         "-vf",
                         vf,
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "fast",
-                        "-crf",
-                        str(self.config.clip_crf),
+                        *merge_encoder,
                         "-c:a",
                         "aac",
                         "-b:a",

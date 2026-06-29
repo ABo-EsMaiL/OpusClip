@@ -6,6 +6,7 @@ OpenAI-compatible API to identify the most viral segments from a transcript.
 """
 
 import json
+import warnings
 from typing import Literal
 
 from openai import OpenAI, OpenAIError
@@ -82,6 +83,13 @@ class LLMClipSelector(ClipSelector):
         total = sum(len(line) for line in all_lines)
         if total <= max_chars:
             return "\n".join(all_lines)
+        coverage = max_chars / total * 100
+        if coverage < 50:
+            warnings.warn(
+                f"Transcript truncated to {coverage:.0f}% coverage "
+                f"(max_llm_chars={max_chars}, total={total}). "
+                "Clip selection accuracy may decrease for long videos."
+            )
         step = max(1, round(total / max_chars))
         out: list[str] = []
         budget = 0
