@@ -11,7 +11,7 @@ class TestPipelineConfigDefaults:
         assert config.min_clips == 5
         assert config.max_clips == 12
         assert config.clip_crf == 20
-        assert config.api_retry_attempts == 3
+        assert config.api_retry_attempts == 5
         assert config.log_level == "INFO"
 
     def test_output_dir_defaults_to_opusclip_output(self):

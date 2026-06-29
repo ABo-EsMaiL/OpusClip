@@ -29,8 +29,8 @@ _LLM_TEMPERATURE: float = 0.20
 class LLMClipSelector(ClipSelector):
     """Selects viral clips from a transcript using a large language model.
 
-    The selector sends the full transcript to the configured API and parses
-    the structured JSON response into :class:`ClipCandidate` objects.
+    The selector sends the transcript (optionally compressed) to the configured API
+    and parses the structured JSON response into :class:`ClipCandidate` objects.
 
     Args:
         api_key: API key for the OpenAI-compatible endpoint.
@@ -68,6 +68,45 @@ class LLMClipSelector(ClipSelector):
                 best, best_d = cand, d
         return round(best, 3)
 
+    @staticmethod
+    def _compress_transcript(
+        segments: list[TranscriptSegment], max_chars: int = 28000
+    ) -> str:
+        """Sample evenly across the full video within char budget.
+
+        Matches the behaviour of the original ``compress_transcript()``
+        in the legacy notebook — uniform sampling if the transcript exceeds
+        *max_chars* characters.
+
+        Args:
+            segments: List of transcript segments.
+            max_chars: Maximum allowed character count for the output string.
+
+        Returns:
+            A single string with one ``[start-end]: text`` line per retained
+            segment, joined by newlines.
+        """
+        all_lines = [
+            f"[{s.start:.1f}s-{s.end:.1f}s]: {s.text}" for s in segments
+        ]
+        total = sum(len(l) for l in all_lines)
+        if total <= max_chars:
+            return "\n".join(all_lines)
+        step = max(1, round(total / max_chars))
+        out: list[str] = []
+        budget = 0
+        for i, (seg, line) in enumerate(zip(segments, all_lines)):
+            if i % step != 0:
+                continue
+            if budget + len(line) + 1 > max_chars:
+                out.append(f"[… {segments[-1].end:.0f}s total …]")
+                break
+            out.append(line)
+            budget += len(line) + 1
+        print(f"    Sampled {len(out)}/{len(segments)} segments "
+              f"({budget:,}/{total:,} chars)")
+        return "\n".join(out)
+
     def select_clips(
         self, transcript: TranscriptResult, config: PipelineConfig
     ) -> list[ClipCandidate]:
@@ -95,9 +134,13 @@ class LLMClipSelector(ClipSelector):
             min_virality=config.min_virality,
             lang_hint=lang_hint,
         )
-        tx_text = "\n".join(
-            f"[{s.start:.1f}s-{s.end:.1f}s]: {s.text}" for s in transcript.segments
+        tx_text = self._compress_transcript(
+            transcript.segments, config.max_llm_chars
         )
+        print("=" * 80)
+        print("Transcript chars:", len(tx_text))
+        print("Prompt chars:", len(tx_text) + len(clip_system))
+        print("=" * 80)
 
         @with_retry(
             attempts=config.api_retry_attempts,
@@ -107,11 +150,6 @@ class LLMClipSelector(ClipSelector):
         )
         def _fetch_clips() -> list[dict[str, object]]:
             try:
-                prompt = f"Transcript:\n\n{tx_text}"
-                print("=" * 80)
-                print("Transcript chars:", len(tx_text))
-                print("Prompt chars:", len(prompt))
-                print("=" * 80)
                 resp = self.client.chat.completions.create(
                     model=self.model,
                     messages=[

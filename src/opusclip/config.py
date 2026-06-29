@@ -43,9 +43,12 @@ class PipelineConfig:
     max_duration: int = 120
     min_virality: int = 65
 
+    # LLM Context
+    max_llm_chars: int = 28000
+
     # API Retry Policy
-    api_retry_attempts: int = 3
-    api_retry_delay_s: float = 2.0
+    api_retry_attempts: int = 5
+    api_retry_delay_s: float = 5.0
     api_retry_backoff_factor: float = 2.0
 
     # Face Detection Tunables

@@ -98,7 +98,9 @@ _STEPS = [
 
 
 def _progress(current: int, total: int, message: str) -> None:
+    print("=" * 80)
     print(f"[{current}/{total}] {message}...")
+    print("=" * 80)
 
 
 def _sanitize_source_name(source: str) -> str:
