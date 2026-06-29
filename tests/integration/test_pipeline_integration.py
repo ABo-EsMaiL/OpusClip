@@ -83,6 +83,7 @@ class TestPipelineEndToEnd:
             video_renderer=MockVideoRenderer(),
             metadata_generator=MockMetadataGenerator(),
         )
+        pipeline._skip_health_checks = True
         with patch("opusclip.subprocess_utils.run_ffmpeg") as mock_ffmpeg:
             mock_ffmpeg.return_value.returncode = 0
             result = pipeline.run(str(video_path))
@@ -101,7 +102,7 @@ class TestCli:
         assert args.max_clips is None
         assert args.renderer is None
         assert args.encoder is None
-        assert args.resume is False
+        assert args.fresh is False
         assert args.log_level is None
 
     def test_build_parser_all_options(self):
@@ -109,7 +110,7 @@ class TestCli:
         args = parser.parse_args([
             "input.mp4", "--output", "out/", "--min-clips", "6",
             "--max-clips", "10", "--renderer", "legacy",
-            "--encoder", "h264_nvenc", "--resume", "--log-level", "DEBUG",
+            "--encoder", "h264_nvenc", "--fresh", "--log-level", "DEBUG",
         ])
         assert args.input == ["input.mp4"]
         assert args.output == "out/"
@@ -117,7 +118,7 @@ class TestCli:
         assert args.max_clips == 10
         assert args.renderer == "legacy"
         assert args.encoder == "h264_nvenc"
-        assert args.resume is True
+        assert args.fresh is True
         assert args.log_level == "DEBUG"
 
     def test_renderer_maps_to_renderer_backend(self):

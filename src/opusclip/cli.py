@@ -1,5 +1,6 @@
 import argparse
 import json
+import signal
 import sys
 from pathlib import Path
 from typing import Any, List, Optional
@@ -36,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="FFmpeg video encoder (e.g. libx264, h264_nvenc). Default: libx264.",
     )
     parser.add_argument(
-        "--resume", action="store_true", default=False,
-        help="Resume a previously interrupted pipeline from the last completed step.",
+        "--fresh", action="store_true", default=False,
+        help="Ignore cached progress and run the full pipeline from scratch.",
     )
     parser.add_argument(
         "--log-level", type=str, default=None,
@@ -100,6 +101,20 @@ def run_cli(argv: Optional[List[str]] = None) -> int:
     if args.log_level is not None:
         overrides["log_level"] = args.log_level
 
+    _interrupted = False
+
+    def _handle_interrupt(signum: int, frame: object) -> None:
+        nonlocal _interrupted
+        if _interrupted:
+            sys.exit(2)
+        _interrupted = True
+        print("\nShutdown requested — finishing current step, then exiting...", file=sys.stderr)
+        signal.signal(signal.SIGINT, lambda *_: sys.exit(2))
+
+    signal.signal(signal.SIGINT, _handle_interrupt)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _handle_interrupt)
+
     config = PipelineConfig.from_env(**overrides)
 
     factory = ProviderFactory(config)
@@ -108,15 +123,18 @@ def run_cli(argv: Optional[List[str]] = None) -> int:
     try:
         if len(sources) == 1:
             pipeline = factory.create_pipeline(sources[0])
-            result = pipeline.run(sources[0], resume=args.resume)
+            result = pipeline.run(sources[0], fresh=args.fresh)
             print(json.dumps(_dictify(result), indent=2, ensure_ascii=False))
         else:
             results: list[PipelineResult] = []
             for src in sources:
                 pipeline = factory.create_pipeline(src)
-                result = pipeline.run(src, resume=args.resume)
+                result = pipeline.run(src, fresh=args.fresh)
                 results.append(result)
             print(json.dumps([_dictify(r) for r in results], indent=2, ensure_ascii=False))
+    except KeyboardInterrupt:
+        print("\nInterrupted by user.", file=sys.stderr)
+        return 130
     except OpusClipError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

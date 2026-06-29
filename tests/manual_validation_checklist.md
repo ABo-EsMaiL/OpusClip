@@ -52,7 +52,7 @@ python -m opusclip /path/to/video1.mp4 /path/to/video2.mp4 --output /tmp/opuscli
 **Procedure:**
 1. Start processing: `python -m opusclip sample.mp4 --output /tmp/opusclip_resume`
 2. Interrupt with `Ctrl+C` mid-way (e.g., during rendering)
-3. Re-run with `--resume`: `python -m opusclip sample.mp4 --output /tmp/opusclip_resume --resume`
+3. Re-run with (auto-resume): `python -m opusclip sample.mp4 --output /tmp/opusclip_resume` (no `--fresh` flag — pipeline should skip completed steps)
 
 **Expected:**
 - Second run skips completed steps and resumes from last incomplete step

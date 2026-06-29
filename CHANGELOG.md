@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-06-29
+## [1.0.0] - 2026-06-30
+
+### Added
+- Pre-flight health checks: Pipeline now validates ffmpeg/ffprobe availability, font paths, and optional GPU encoder support at startup
+- Graceful Ctrl+C shutdown: SIGINT/SIGTERM caught in CLI; pipeline completes current step and saves cache before exiting; second interrupt forces immediate exit
+- Debug diagnostics: Transcript and prompt character counts printed before LLM API call for easier debugging
+- Auto-resume: Cache state auto-saved after every step; pipeline resumes from last completed step by default without requiring a `--resume` flag
+
+### Changed
+- `--resume` CLI flag replaced with `--fresh`; pipeline now auto-resumes by default
+- `_compress_transcript()` removed from `LLMClipSelector` — full transcript always sent to LLM
+- `max_llm_chars` removed from `PipelineConfig`
+- `target_width`/`target_height` added to `PipelineConfig` to fix `ASSSubtitleRenderer` config attribute error
+- Retry error reporting improved with per-attempt debug output and full traceback on exhaustion
+- LLM error diagnostics enhanced: prints `status_code`, `request_id`, `body`; saves raw failed response to disk; reports full exception chain on `ClipSelectionError`
+
+### Fixed
+- 4 tests referencing `--resume`/`args.resume` now use `--fresh`/`args.fresh`
+- Ruff lint errors (unused import, f-string without placeholders)
 
 ### Added
 - Phase 1: Repository scaffolded with complete project structure and base configuration.

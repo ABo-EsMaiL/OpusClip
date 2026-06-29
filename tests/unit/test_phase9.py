@@ -201,13 +201,13 @@ class TestBatchCLI:
 
     def test_parser_resume_flag(self):
         parser = build_parser()
-        args = parser.parse_args(["video.mp4", "--resume"])
-        assert args.resume is True
+        args = parser.parse_args(["video.mp4", "--fresh"])
+        assert args.fresh is True
 
     def test_parser_resume_default(self):
         parser = build_parser()
         args = parser.parse_args(["video.mp4"])
-        assert args.resume is False
+        assert args.fresh is False
 
 
 class TestDictifyBatch:

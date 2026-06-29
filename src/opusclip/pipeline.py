@@ -148,6 +148,7 @@ class Pipeline:
         self.metrics: PipelineMetrics = PipelineMetrics()
         self._source: str = ""
         self._ctx: Optional[PipelineContext] = None
+        self._skip_health_checks: bool = False
 
     def _clear_step_cache(self) -> None:
         if self._ctx and self._ctx.output_dir:
@@ -233,8 +234,43 @@ class Pipeline:
             result.total_clips = len(result.clips)
         return True
 
-    def run(self, source: str, resume: bool = False,
-            output_dir: Optional[Path] = None) -> PipelineResult:
+    def _check_health(self) -> None:
+        """Verify external dependencies are available before running."""
+        if self._skip_health_checks:
+            return
+        import subprocess, shutil
+
+        if shutil.which("ffmpeg") is None:
+            raise OpusClipError("ffmpeg not found on PATH — install FFmpeg to continue.")
+        try:
+            subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=15)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise OpusClipError(f"ffmpeg cannot execute: {exc}") from exc
+
+        if shutil.which("ffprobe") is None:
+            raise OpusClipError("ffprobe not found on PATH — install FFmpeg (includes ffprobe) to continue.")
+        try:
+            subprocess.run(["ffprobe", "-version"], capture_output=True, timeout=15)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise OpusClipError(f"ffprobe cannot execute: {exc}") from exc
+
+        from .fonts import FontManager
+        from .config import PipelineConfig
+        fm = FontManager()
+        cfg = self.config or PipelineConfig()
+        for name in cfg.subtitle_fonts or ["Tajawal-ExtraBold.ttf"]:
+            try:
+                fm.get_font_path(name)
+            except FileNotFoundError as exc:
+                raise OpusClipError(f"Required font not found: {exc}") from exc
+
+        if self.config.encoder and self.config.encoder != "libx264":
+            from .utils.ffmpeg_utils import check_encoder_available
+            if not check_encoder_available(self.config.encoder):
+                print(f"  Warning: encoder '{self.config.encoder}' unavailable, falling back to libx264.")
+
+    def run(self, source: str, resume: bool = True,
+            output_dir: Optional[Path] = None, fresh: bool = False) -> PipelineResult:
         self._source = source
         out = output_dir or self.config.output_dir
         self._ctx = PipelineContext(
@@ -246,17 +282,20 @@ class Pipeline:
         self._ctx.output_dir.mkdir(parents=True, exist_ok=True)
         self._ctx.metadata_output_dir.mkdir(parents=True, exist_ok=True)
 
+        self._check_health()
+
         result = PipelineResult(output_dir=out, source=source)
         self.metrics = PipelineMetrics()
         self.metrics.start()
 
         cache = CacheManager(out, source)
-        if not resume:
-            cache.clear()
-            self._clear_step_cache()
 
         last_completed = cache.get_completed_step()
-        if last_completed > 0 and resume:
+        if fresh or (last_completed > 0 and not resume):
+            cache.clear()
+            self._clear_step_cache()
+            last_completed = 0
+        elif last_completed > 0 and resume:
             self._load_step_cache(result, last_completed)
             print(f"  Resuming at step {last_completed + 1} (cached through step {last_completed})")
 
@@ -275,7 +314,7 @@ class Pipeline:
 
         try:
             for step_num, stage_name, step_fn in steps:
-                if step_num <= last_completed and resume:
+                if step_num <= last_completed:
                     _progress(step_num, len(_STEPS), f"{_STEPS[step_num - 1]} (cached)")
                     continue
                 with self.metrics.measure_stage(stage_name):
@@ -283,6 +322,9 @@ class Pipeline:
                 cache.mark_step_completed(step_num)
                 self._save_step_cache(result)
         except OpusClipError:
+            raise
+        except KeyboardInterrupt:
+            print(f"\nInterrupted after step {last_completed} — progress saved.")
             raise
         except Exception as exc:
             raise OpusClipError(f"Pipeline failed at an unexpected point: {exc}") from exc
@@ -293,12 +335,12 @@ class Pipeline:
 
         return result
 
-    def run_batch(self, sources: list[str], resume: bool = False) -> list[PipelineResult]:
+    def run_batch(self, sources: list[str], resume: bool = True, fresh: bool = False) -> list[PipelineResult]:
         results: list[PipelineResult] = []
         for source in sources:
             sub_dir = self.config.output_dir / _sanitize_source_name(source)
             try:
-                result = self.run(source, resume=resume, output_dir=sub_dir)
+                result = self.run(source, resume=resume, output_dir=sub_dir, fresh=fresh)
                 results.append(result)
             except OpusClipError as exc:
                 results.append(PipelineResult(

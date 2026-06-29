@@ -4,7 +4,7 @@ This file serves as the single source of truth for the project's implementation 
 
 **Current Phase**: Phase 13 - Polish & Final Review (Completed)
 **Completion Percentage**: 100% (13/13 phases)
-**Current Commit Hash**: d4b2cd7
+**Current Commit Hash**: (pending commit)
 
 ---
 
@@ -42,3 +42,4 @@ This file serves as the single source of truth for the project's implementation 
 ## Open Issues
 
 - T014 (font bundling) deferred due to zero-download policy — fonts downloaded at runtime
+- `dist/` build artifacts (`.tar.gz`, `.whl`) present in working tree — clean before final commit

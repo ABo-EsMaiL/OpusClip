@@ -107,6 +107,11 @@ class LLMClipSelector(ClipSelector):
         )
         def _fetch_clips() -> list[dict[str, object]]:
             try:
+                prompt = f"Transcript:\n\n{tx_text}"
+                print("=" * 80)
+                print("Transcript chars:", len(tx_text))
+                print("Prompt chars:", len(prompt))
+                print("=" * 80)
                 resp = self.client.chat.completions.create(
                     model=self.model,
                     messages=[

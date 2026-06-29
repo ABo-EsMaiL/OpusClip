@@ -13,7 +13,7 @@ present at the configured path.
 
 import os
 import urllib.request
-from pathlib import Path
+
 
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
@@ -58,7 +58,7 @@ class MediaPipeFaceDetector(FaceDetector):
             FaceDetectionError: If the model could not be found or downloaded.
         """
         if not os.path.exists(model_asset_path):
-            print(f"Downloading face_landmarker.task (~15 MB) ...")
+            print("Downloading face_landmarker.task (~15 MB) ...")
             try:
                 urllib.request.urlretrieve(_FACE_LANDMARKER_URL, model_asset_path)
             except Exception as exc:

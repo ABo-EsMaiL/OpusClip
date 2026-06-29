@@ -157,7 +157,7 @@ def mock_pipeline(sample_config, sample_transcript, sample_clips, tmp_path) -> P
     video_renderer = MockVideoRenderer()
     metadata_generator = MockMetadataGenerator()
 
-    return Pipeline(
+    pipeline = Pipeline(
         config=sample_config,
         input_provider=input_provider,
         transcription_provider=transcription_provider,
@@ -167,6 +167,8 @@ def mock_pipeline(sample_config, sample_transcript, sample_clips, tmp_path) -> P
         video_renderer=video_renderer,
         metadata_generator=metadata_generator,
     )
+    pipeline._skip_health_checks = True
+    return pipeline
 
 
 @pytest.fixture

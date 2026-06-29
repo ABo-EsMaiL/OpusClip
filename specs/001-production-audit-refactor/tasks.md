@@ -138,9 +138,9 @@
 - [X] T037 [US3] In `src/opusclip/pipeline.py` — add audio WAV cleanup: delete `audio.wav` immediately after transcription completes and JSON is saved. Addresses REL-003 (460MB WAV file never deleted)
 - [X] T038 [US3] In `src/opusclip/rendering/ffmpeg_renderer.py` — add `try/finally` cleanup block for all intermediate files (`raw_path`, `silent_path`, `audio_path`, `safe_ass`). Replace bare `except: pass` with `except OSError as e: logger.warning(...)`. Addresses REL-001 and CODE-003
 - [X] T039 [US3] In `src/opusclip/pipeline.py` — wrap transcription and clip-selection stages in pipeline-stage functions with structured error handling. On failure, emit structured log and allow downstream stages to skip gracefully. Addresses PROD-002
-- [ ] T039a [US3] Create `src/opusclip/core/cache.py` — implement `CacheManager` to handle JSON cache files with explicit support for invalidation, state recovery, and force-refresh logic
-- [ ] T039b [US3] In `src/opusclip/pipeline.py` — implement pre-flight health checks: validate config before startup, verify FFmpeg binary is installed and executable, verify CUDA/GPU availability (if configured), and verify font paths
-- [ ] T039c [US3] In `src/opusclip/cli.py` and `src/opusclip/pipeline.py` — implement graceful shutdown on `Ctrl+C` (SIGINT/SIGTERM). Ensure any running FFmpeg processes are cleanly terminated and intermediate states are written to the cache before exiting
+- [X] T039a [US3] Create `src/opusclip/core/cache.py` — implement `CacheManager` to handle JSON cache files with explicit support for invalidation, state recovery, and force-refresh logic
+- [X] T039b [US3] In `src/opusclip/pipeline.py` — implement pre-flight health checks: validate config before startup, verify FFmpeg binary is installed and executable, verify CUDA/GPU availability (if configured), and verify font paths
+- [X] T039c [US3] In `src/opusclip/cli.py` and `src/opusclip/pipeline.py` — implement graceful shutdown on `Ctrl+C` (SIGINT/SIGTERM). Ensure any running FFmpeg processes are cleanly terminated and intermediate states are written to the cache before exiting
 
 **Checkpoint**: All `print()` replaced with structured logging and file logging. Audio WAV cleaned up after use. Intermediate files cleaned on failure. Cache management formalized. Pipeline performs pre-flight checks and recovers gracefully. Ctrl+C shuts down safely.
 
@@ -226,7 +226,7 @@
 
 **Purpose**: Create a polished Google Colab demonstration notebook. Corresponds to plan.md Phase 11 - Final Notebook. This phase executes ONLY after all previous phases are complete and reviewed.
 
-- [ ] T064 Create `notebooks/opusclip_demo.ipynb` — polished Colab notebook with sections: Introduction, Dependency Installation (`pip install -r requirements.txt`), Environment Configuration (API key setup), Upload/YouTube Mode, Pipeline Execution, Download Results, Troubleshooting. The notebook must import and use the production `opusclip` package — no duplicated business logic
+- [X] T064 Create `notebooks/opusclip_demo.ipynb` — polished Colab notebook with sections: Introduction, Dependency Installation (`pip install -r requirements.txt`), Environment Configuration (API key setup), Upload/YouTube Mode, Pipeline Execution, Download Results, Troubleshooting. The notebook must import and use the production `opusclip` package — no duplicated business logic
 
 **Checkpoint**: Notebook runs on Google Colab and produces identical output to the CLI pipeline.
 
@@ -238,15 +238,15 @@
 
 **Purpose**: Final review, cleanup, and repository quality assurance.
 
-- [ ] T065 Review every `src/opusclip/**/*.py` file — remove any remaining TODOs, debug prints, dead code, or placeholder logic
-- [ ] T066 Run `ruff check src/ tests/` and `mypy src/` — fix all linting and type errors
-- [ ] T067 [P] Update `CHANGELOG.md` with complete history of all 11 implementation phases
-- [ ] T068 [P] Update `PROJECT_PROGRESS.md` to 100% completion with all commit hashes
-- [ ] T069 Verify all 30 audit findings from audit-report.md have been addressed — cross-reference each finding ID against implementation. Document any findings intentionally deferred
-- [ ] T070 Run `quickstart.md` validation scenarios 1-6 against the final codebase
-- [ ] T070a Run packaging validation (`python -m build`, `twine check`, or `pip install -e .`) to ensure the package builds correctly for distribution
-- [ ] T070b Create `docs/release-checklist.md` as the final Production Release Checklist, verifying all QA steps are met
-- [ ] T071 Final `git tag v1.0.0` and prepare repository for public release
+- [X] T065 Review every `src/opusclip/**/*.py` file — remove any remaining TODOs, debug prints, dead code, or placeholder logic
+- [X] T066 Run `ruff check src/ tests/` and `mypy src/` — fix all linting and type errors
+- [X] T067 [P] Update `CHANGELOG.md` with complete history of all 11 implementation phases
+- [X] T068 [P] Update `PROJECT_PROGRESS.md` to 100% completion with all commit hashes
+- [X] T069 Verify all 30 audit findings from audit-report.md have been addressed — cross-reference each finding ID against implementation. Document any findings intentionally deferred
+- [X] T070 Run `quickstart.md` validation scenarios 1-6 against the final codebase
+- [X] T070a Run packaging validation (`python -m build`, `twine check`, or `pip install -e .`) to ensure the package builds correctly for distribution
+- [X] T070b Create `docs/release-checklist.md` as the final Production Release Checklist, verifying all QA steps are met
+- [X] T071 Final `git tag v1.0.0` and prepare repository for public release
 
 **Checkpoint**: Repository is production-ready. All audit findings addressed. All tests pass. Documentation and release artifacts complete. Ready for public release.
 
