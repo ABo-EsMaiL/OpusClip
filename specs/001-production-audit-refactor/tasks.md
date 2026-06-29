@@ -171,9 +171,9 @@
 
 - [X] T043 [US3] Create `src/opusclip/cli.py` — implement CLI using `argparse` with subcommands: `process` (single video), `batch` (multiple videos from file/arguments). Accept `--output`, `--min-clips`, `--max-clips`, `--renderer`, `--log-level`. Derive per-video output subdirectories from URL hash or filename
 - [X] T044 [US3] Create `src/opusclip/__main__.py` — entry point for `python -m opusclip` that delegates to `cli.py`
-- [ ] T045 [US3] In `src/opusclip/pipeline.py` — implement batch orchestration: accept `list[str]` of video sources, process each in an isolated `PipelineContext` with independent output directory and error recovery. A failure in one video must not abort the batch
-- [ ] T045a [US3] In `src/opusclip/cli.py` and `pipeline.py` — implement `--resume` flag to automatically recover and continue from the last successful stage using `CacheManager` state
-- [ ] T045b [US3] Integrate `tqdm` (or similar progress reporting) into the CLI to provide visual feedback for long-running operations (transcription, rendering)
+- [X] T045 [US3] In `src/opusclip/pipeline.py` — implement batch orchestration: accept `list[str]` of video sources, process each in an isolated `PipelineContext` with independent output directory and error recovery. A failure in one video must not abort the batch
+- [X] T045a [US3] In `src/opusclip/cli.py` and `pipeline.py` — implement `--resume` flag to automatically recover and continue from the last successful stage using `CacheManager` state
+- [X] T045b [US3] Integrate `tqdm` (or similar progress reporting) into the CLI to provide visual feedback for long-running operations (transcription, rendering)
 - [X] T045c [US3] Create `src/opusclip/provider_factory.py` — implement a provider registry/factory to dynamically resolve and instantiate concrete AI providers based on CLI/Config values
 
 **Checkpoint**: CLI works with `python -m opusclip input.mp4` and `python -m opusclip --help`. Providers dynamically resolved via factory. Single-video pipeline fully operational with progress reporting.

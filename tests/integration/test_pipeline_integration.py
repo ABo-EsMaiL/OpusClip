@@ -95,12 +95,13 @@ class TestCli:
     def test_build_parser_defaults(self):
         parser = build_parser()
         args = parser.parse_args(["input.mp4"])
-        assert args.input == "input.mp4"
+        assert args.input == ["input.mp4"]
         assert args.output is None
         assert args.min_clips is None
         assert args.max_clips is None
         assert args.renderer is None
         assert args.encoder is None
+        assert args.resume is False
         assert args.log_level is None
 
     def test_build_parser_all_options(self):
@@ -108,14 +109,15 @@ class TestCli:
         args = parser.parse_args([
             "input.mp4", "--output", "out/", "--min-clips", "6",
             "--max-clips", "10", "--renderer", "legacy",
-            "--encoder", "h264_nvenc", "--log-level", "DEBUG",
+            "--encoder", "h264_nvenc", "--resume", "--log-level", "DEBUG",
         ])
-        assert args.input == "input.mp4"
+        assert args.input == ["input.mp4"]
         assert args.output == "out/"
         assert args.min_clips == 6
         assert args.max_clips == 10
         assert args.renderer == "legacy"
         assert args.encoder == "h264_nvenc"
+        assert args.resume is True
         assert args.log_level == "DEBUG"
 
     def test_renderer_maps_to_renderer_backend(self):

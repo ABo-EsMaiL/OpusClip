@@ -1,8 +1,9 @@
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
+from .cache import CacheManager
 from .config import PipelineConfig
 from .context import PipelineContext
 from .input.base import InputProvider, VideoMetadata
@@ -28,6 +29,13 @@ _TARGET_WIDTH = 1080
 _TARGET_HEIGHT = 1920
 
 
+try:
+    from tqdm import tqdm as _tqdm
+    _TQDM_AVAILABLE = True
+except ImportError:
+    _TQDM_AVAILABLE = False
+
+
 @dataclass
 class PipelineResult:
     clips: List["ClipResult"] = field(default_factory=list)
@@ -36,6 +44,8 @@ class PipelineResult:
     total_clips: int = 0
     successful_clips: int = 0
     failed_clips: int = 0
+    source: str = ""
+    error: Optional[str] = None
 
 
 @dataclass
@@ -66,6 +76,19 @@ def _progress(current: int, total: int, message: str) -> None:
     print(f"[{current}/{total}] {message}...")
 
 
+def _sanitize_source_name(source: str) -> str:
+    import hashlib
+    import re
+    from urllib.parse import urlparse
+    parsed = urlparse(source)
+    h = hashlib.sha256(source.encode()).hexdigest()[:6]
+    if parsed.scheme in ("http", "https"):
+        base = "url"
+    else:
+        base = re.sub(r"[^a-zA-Z0-9_-]", "_", Path(source).stem) or "file"
+    return f"{base}_{h}"
+
+
 class Pipeline:
     def __init__(
         self,
@@ -90,42 +113,46 @@ class Pipeline:
         self._source: str = ""
         self._ctx: Optional[PipelineContext] = None
 
-    def run(self, source: str) -> PipelineResult:
+    def run(self, source: str, resume: bool = False,
+            output_dir: Optional[Path] = None) -> PipelineResult:
         self._source = source
+        out = output_dir or self.config.output_dir
         self._ctx = PipelineContext(
             target_width=_TARGET_WIDTH,
             target_height=_TARGET_HEIGHT,
-            output_dir=self.config.output_dir,
-            metadata_output_dir=self.config.output_dir / "metadata",
+            output_dir=out,
+            metadata_output_dir=out / "metadata",
         )
         self._ctx.output_dir.mkdir(parents=True, exist_ok=True)
         self._ctx.metadata_output_dir.mkdir(parents=True, exist_ok=True)
 
-        result = PipelineResult(output_dir=self._ctx.output_dir)
+        result = PipelineResult(output_dir=out, source=source)
         self.metrics = PipelineMetrics()
         self.metrics.start()
+        cache = CacheManager(out, source) if resume else None
+
+        steps: list[tuple[int, str, Callable[[], None]]] = [
+            (1, "validate_input", lambda: self._step_1_validate_input(source)),
+            (2, "read_metadata", self._step_2_read_metadata),
+            (3, "transcribe_audio", self._step_3_transcribe_audio),
+            (4, "repair_transcript", self._step_4_repair_transcript),
+            (5, "select_clips", self._step_5_select_clips),
+            (6, "render_subtitles", self._step_6_render_subtitles),
+            (7, "render_videos", lambda: self._step_7_render_videos(result)),
+            (8, "validate_rendered", lambda: self._step_8_validate_rendered(result)),
+            (9, "generate_metadata", lambda: self._step_9_generate_metadata(result)),
+            (10, "produce_final", lambda: self._step_10_produce_final(result)),
+        ]
 
         try:
-            with self.metrics.measure_stage("validate_input"):
-                self._step_1_validate_input(source)
-            with self.metrics.measure_stage("read_metadata"):
-                self._step_2_read_metadata()
-            with self.metrics.measure_stage("transcribe_audio"):
-                self._step_3_transcribe_audio()
-            with self.metrics.measure_stage("repair_transcript"):
-                self._step_4_repair_transcript()
-            with self.metrics.measure_stage("select_clips"):
-                self._step_5_select_clips()
-            with self.metrics.measure_stage("render_subtitles"):
-                self._step_6_render_subtitles()
-            with self.metrics.measure_stage("render_videos"):
-                self._step_7_render_videos(result)
-            with self.metrics.measure_stage("validate_rendered"):
-                self._step_8_validate_rendered(result)
-            with self.metrics.measure_stage("generate_metadata"):
-                self._step_9_generate_metadata(result)
-            with self.metrics.measure_stage("produce_final"):
-                self._step_10_produce_final(result)
+            for step_num, stage_name, step_fn in steps:
+                if cache and cache.is_step_completed(step_num):
+                    _progress(step_num, len(_STEPS), f"{_STEPS[step_num - 1]} (cached)")
+                    continue
+                with self.metrics.measure_stage(stage_name):
+                    step_fn()
+                if cache:
+                    cache.mark_step_completed(step_num)
         except OpusClipError:
             raise
         except Exception as exc:
@@ -134,11 +161,24 @@ class Pipeline:
             self.metrics.finish()
             self.metrics.failures = result.failed_clips
             # TODO: Wire metrics.api_calls / api_retries into LLM providers
-            # (WhisperProvider, LLMClipSelector, LLMMetadataGenerator) for
-            # accurate retry and API usage tracking during pipeline execution.
+            # for accurate retry and API usage tracking during pipeline execution.
             print(self.metrics.report())
 
         return result
+
+    def run_batch(self, sources: list[str], resume: bool = False) -> list[PipelineResult]:
+        results: list[PipelineResult] = []
+        for source in sources:
+            sub_dir = self.config.output_dir / _sanitize_source_name(source)
+            try:
+                result = self.run(source, resume=resume, output_dir=sub_dir)
+                results.append(result)
+            except OpusClipError as exc:
+                results.append(PipelineResult(
+                    output_dir=sub_dir, source=source,
+                    error=str(exc),
+                ))
+        return results
 
     # ------------------------------------------------------------------
     # Step 1: Validate input
@@ -325,7 +365,10 @@ class Pipeline:
         subtitle_paths = self._ctx.render_state.get("subtitle_paths", [])
         sub_map = {num: path for num, path in subtitle_paths}
 
-        for clip_info in self._ctx.selected_clips:
+        clip_iter = self._ctx.selected_clips
+        if _TQDM_AVAILABLE:
+            clip_iter = _tqdm(clip_iter, desc="Rendering clips", leave=False)
+        for clip_info in clip_iter:
             num = clip_info["number"]
             candidate = ClipCandidate(
                 clip_number=num,
