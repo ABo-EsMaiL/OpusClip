@@ -1,5 +1,7 @@
 # OpusClip
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ABo-EsMaiL/OpusClip/blob/main/notebooks/opusclip_demo.ipynb)
+
 AI-powered automatic short-video pipeline — transform long-form video into
 vertical karaoke-subtitled clips with smart cropping, at zero cost.
 
