@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Phase 1: Repository scaffolded with complete project structure and base configuration.
 - Phase 2: Security hardening utilities (`security.py`, `subprocess_utils.py`, `temp_manager.py`, `input_validator.py`) to mitigate static and runtime vulnerabilities.
+- Phase 3: Dependency cleanup defining the `FontManager` and `InputProvider` abstraction (font asset bundling deferred per zero-download policy, and concrete providers moved to Phase 4).
+- Phase 4: Core Architecture established. Created clean ABCs and dataclass contracts for `TranscriptionProvider`, `ClipSelector`, `FaceDetector`, `SubtitleRenderer`, `VideoRenderer`, and `MetadataGenerator`. Implemented pipeline orchestrator structure without business logic.
+- Phase 5: AI Provider Implementations. Ported `WhisperProvider`, `LLMClipSelector`, `LLMMetadataGenerator`, and `SmartDirector`. Refactored face detection to use `MediaPipeFaceDetector` (replacing dlib). Included robust retry logic and VRAM cleanup.
 - Base exception hierarchy (`OpusClipError`) and pipeline context definitions.
 - CI/CD workflows, pre-commit config, and issue templates.
 - Implementation 13-phase workflow defined.

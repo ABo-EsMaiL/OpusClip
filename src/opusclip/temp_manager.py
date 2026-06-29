@@ -4,12 +4,13 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
+
 class TempDir:
     """
     Context manager for creating a secure temporary directory that cleans up
     automatically upon exit.
     """
-    
+
     def __init__(self, prefix: str = "opusclip_") -> None:
         self.prefix = prefix
         self.path: Optional[Path] = None

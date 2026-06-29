@@ -1,6 +1,7 @@
 import os
 from .exceptions import ConfigurationError
 
+
 def load_api_key() -> str:
     """
     Loads the API key from the environment.

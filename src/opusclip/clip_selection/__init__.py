@@ -1,0 +1,1 @@
+"""Clip selection package."""
