@@ -256,16 +256,6 @@ class Pipeline:
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise OpusClipError(f"ffprobe cannot execute: {exc}") from exc
 
-        from .fonts import FontManager
-        from .config import PipelineConfig
-        fm = FontManager()
-        cfg = self.config or PipelineConfig()
-        for name in cfg.subtitle_fonts or ["Tajawal-ExtraBold.ttf"]:
-            try:
-                fm.get_font_path(name)
-            except FileNotFoundError as exc:
-                raise OpusClipError(f"Required font not found: {exc}") from exc
-
         if self.config.encoder and self.config.encoder != "libx264":
             from .utils.ffmpeg_utils import check_encoder_available
             if not check_encoder_available(self.config.encoder):

@@ -59,7 +59,7 @@ class ASSSubtitleRenderer(SubtitleRenderer):
         mv = int(th * 0.07)
         mv_hook = int(th * 0.04)
         # We will use the family name assuming it maps correctly.
-        font_ar = "Tajawal"
+        font_ar = "Amiri"
         font_en = "Montserrat"
 
         header = (
