@@ -89,7 +89,7 @@ class LLMClipSelector(ClipSelector):
         all_lines = [
             f"[{s.start:.1f}s-{s.end:.1f}s]: {s.text}" for s in segments
         ]
-        total = sum(len(l) for l in all_lines)
+        total = sum(len(line) for line in all_lines)
         if total <= max_chars:
             return "\n".join(all_lines)
         step = max(1, round(total / max_chars))

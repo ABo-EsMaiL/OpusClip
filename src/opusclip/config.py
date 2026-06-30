@@ -44,7 +44,7 @@ class PipelineConfig:
     min_virality: int = 65
 
     # LLM Context
-    max_llm_chars: int = 28000
+    max_llm_chars: int = 50000
 
     # API Retry Policy
     api_retry_attempts: int = 5

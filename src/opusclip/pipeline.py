@@ -240,7 +240,8 @@ class Pipeline:
         """Verify external dependencies are available before running."""
         if self._skip_health_checks:
             return
-        import subprocess, shutil
+        import subprocess
+        import shutil
 
         if shutil.which("ffmpeg") is None:
             raise OpusClipError("ffmpeg not found on PATH — install FFmpeg to continue.")
