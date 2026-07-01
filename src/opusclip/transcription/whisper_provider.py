@@ -126,7 +126,11 @@ class WhisperProvider(TranscriptionProvider):
         all_words: list[WordInfo] = []
         seg_id = 1
 
-        for seg in seg_iter:
+        for i, seg in enumerate(seg_iter):
+            # Debug: print first 10 raw segments before filtering
+            if i < 10:
+                print(seg.text)
+
             seg_words: list[WordInfo] = []
             for w in seg.words or []:
                 prob = getattr(w, "probability", 1.0)
