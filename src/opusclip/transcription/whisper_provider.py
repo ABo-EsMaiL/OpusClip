@@ -61,8 +61,8 @@ _MAX_REPETITION_RATIO: float = 0.5
 _MIN_SEGMENT_LENGTH_FOR_CHECK: int = 5
 
 # Bilingual initial prompt for Arabic-English content.
-# Instructs Whisper to preserve the original language of each word,
-# never transliterate, never translate, never infer missing words.
+# Contains Arabic text to bias Whisper toward Arabic output
+# while keeping English text in English.
 _ARABIC_INITIAL_PROMPT: str = (
     "Transcribe exactly as spoken. "
     "Never translate. "
@@ -71,10 +71,12 @@ _ARABIC_INITIAL_PROMPT: str = (
     "If a speaker switches language, preserve the original language. "
     "Keep English words in English and Arabic words in Arabic. "
     "Never transliterate English into Arabic. "
-    "Keep acronyms uppercase. "
-    "Keep URLs unchanged. "
-    "Keep emails unchanged. "
-    "Keep code snippets unchanged. "
+    "مرحبا بكم في البرنامج. "
+    "نرحب بكم مرة أخرى. "
+    "اليوم لدينا ضيف مميز. "
+    "نتحدث عن موضوع مهم. "
+    "شكرا لكم على المشاهدة. "
+    "لا تنسوا الاشتراك في القناة. "
     "Normalize all numbers to digits (0-9). "
     "Use clean punctuation."
 )
@@ -105,7 +107,7 @@ class WhisperProvider(TranscriptionProvider):
             A fully populated :class:`TranscriptResult` dataclass.
         """
         initial_prompt: str | None = None
-        if language == "ar" or not language:
+        if language == "ar":
             initial_prompt = _ARABIC_INITIAL_PROMPT
 
         seg_iter, info = self.model.transcribe(

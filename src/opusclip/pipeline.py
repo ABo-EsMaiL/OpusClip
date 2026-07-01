@@ -455,10 +455,8 @@ class Pipeline:
         audio_dur = self._ctx.duration
         print(f"  Audio duration: {_sec2str(audio_dur)} ({audio_size / 1024:.0f} KB)")
         try:
-            lang = self._detect_language_from_path(video)
-            if lang:
-                print(f"  Detected language: {lang}")
-            print("  Transcribing...")
+            lang = ""
+            print("  Auto-detecting language from audio...")
             t0 = time.monotonic()
             result_obj = self.transcription_provider.transcribe(audio_path, lang)
             elapsed = time.monotonic() - t0
@@ -478,15 +476,7 @@ class Pipeline:
                 audio_path.unlink(missing_ok=True)
             except OSError:
                 pass
-
-    @staticmethod
-    def _detect_language_from_path(video_path: Path) -> str:
-        import re
-        name = video_path.stem.lower()
-        if re.search(r"arab|عربي|بودكاست|مصر|سعود", name):
-            return "ar"
-        return ""
-
+ 
     # ------------------------------------------------------------------
     # Step 4: Repair transcript
     # ------------------------------------------------------------------
