@@ -4,7 +4,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Callable, List, Optional
 
 from .cache import CacheManager
 from .config import PipelineConfig
@@ -41,18 +41,6 @@ except ImportError:
 
 @dataclass
 class PipelineResult:
-    """Structured output from a single pipeline run.
-
-    Attributes:
-        clips: List of per-clip results.
-        output_dir: Root output directory for this run.
-        duration: Source video duration in seconds.
-        total_clips: Number of clips attempted.
-        successful_clips: Number of clips rendered successfully.
-        failed_clips: Number of clips that failed.
-        source: Original input source string.
-        error: Top-level error message if the pipeline aborted.
-    """
     clips: List["ClipResult"] = field(default_factory=list)
     output_dir: Optional[Path] = None
     duration: float = 0.0
@@ -65,16 +53,6 @@ class PipelineResult:
 
 @dataclass
 class ClipResult:
-    """Result of rendering a single clip.
-
-    Attributes:
-        number: 1-based index within the output clip list.
-        video_path: Path to the rendered video file.
-        thumbnail_path: Path to the thumbnail image.
-        metadata: Generated social-media metadata, if available.
-        success: Whether this clip was rendered successfully.
-        error: Error message if rendering failed.
-    """
     number: int
     video_path: Path
     thumbnail_path: Path
@@ -97,6 +75,14 @@ _STEPS = [
 ]
 
 
+def _sec2str(sec: float) -> str:
+    m, s = divmod(int(sec), 60)
+    h, m = divmod(m, 60)
+    if h:
+        return f"{h}h {m}m {s}s"
+    return f"{m}m {s}s"
+
+
 def _progress(current: int, total: int, message: str) -> None:
     print("=" * 80)
     print(f"[{current}/{total}] {message}...")
@@ -117,17 +103,6 @@ def _sanitize_source_name(source: str) -> str:
 
 
 class Pipeline:
-    """Orchestrates the full video-to-clips pipeline.
-
-    Accepts all providers via constructor injection (dependency injection).
-    Runs a 10-step pipeline: validate → read metadata → transcribe → repair
-    → select clips → render subtitles → render videos → validate → generate
-    metadata → produce outputs.
-
-    Supports single runs, batch processing via ``run_batch()``, and
-    step-level resume via ``CacheManager``.
-    """
-
     def __init__(
         self,
         config: PipelineConfig,
@@ -152,92 +127,14 @@ class Pipeline:
         self._ctx: Optional[PipelineContext] = None
         self._skip_health_checks: bool = False
 
-    def _clear_step_cache(self) -> None:
-        if self._ctx and self._ctx.output_dir:
-            path = self._ctx.output_dir / "pipeline_cache_state.json"
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-    def _save_step_cache(self, result: Optional[PipelineResult] = None) -> None:
-        if self._ctx is None or self._ctx.output_dir is None:
-            return
-        ctx = self._ctx
-        data: dict[str, Any] = {
-            "video_path": str(ctx.video_path) if ctx.video_path else None,
-            "video_width": ctx.video_width,
-            "video_height": ctx.video_height,
-            "video_fps": ctx.video_fps,
-            "duration": ctx.duration,
-            "src_crop_w": ctx.src_crop_w,
-            "transcript_data": ctx.transcript_data,
-            "selected_clips": ctx.selected_clips,
-            "render_state": {
-                "subtitle_paths": [
-                    [num, str(p)] for num, p in ctx.render_state.get("subtitle_paths", [])
-                ],
-            },
-        }
-        if result is not None:
-            data["result_clips"] = [
-                {
-                    "number": c.number,
-                    "video_path": str(c.video_path),
-                    "thumbnail_path": str(c.thumbnail_path),
-                    "success": c.success,
-                    "error": c.error,
-                }
-                for c in result.clips
-            ]
-        try:
-            (ctx.output_dir / "pipeline_cache_state.json").write_text(
-                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-        except OSError:
-            pass
-
-    def _load_step_cache(self, result: PipelineResult, last_completed: int) -> bool:
-        if self._ctx is None or self._ctx.output_dir is None:
-            return False
-        path = self._ctx.output_dir / "pipeline_cache_state.json"
-        if not path.exists():
-            return False
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return False
-
-        ctx = self._ctx
-        if data.get("video_path"):
-            ctx.video_path = Path(data["video_path"])
-        ctx.video_width = data.get("video_width", 0)
-        ctx.video_height = data.get("video_height", 0)
-        ctx.video_fps = data.get("video_fps", 0.0)
-        ctx.duration = data.get("duration", 0.0)
-        ctx.src_crop_w = data.get("src_crop_w", 0)
-        ctx.transcript_data = data.get("transcript_data", {})
-        ctx.selected_clips = data.get("selected_clips", [])
-        sub_paths = data.get("render_state", {}).get("subtitle_paths", [])
-        ctx.render_state["subtitle_paths"] = [[num, Path(p)] for num, p in sub_paths]
-
-        # Only restore result clips if step 7+ was completed (rendering produces clips)
-        if last_completed >= 7:
-            for c_data in data.get("result_clips", []):
-                result.clips.append(ClipResult(
-                    number=c_data["number"],
-                    video_path=Path(c_data["video_path"]),
-                    thumbnail_path=Path(c_data["thumbnail_path"]),
-                    success=c_data.get("success", True),
-                    error=c_data.get("error"),
-                ))
-            result.successful_clips = sum(1 for c in result.clips if c.success)
-            result.failed_clips = sum(1 for c in result.clips if not c.success)
-            result.total_clips = len(result.clips)
-        return True
+    def _error_msg(self, step_name: str, reason: str, suggestion: str = "") -> str:
+        lines = [f"Step: {step_name}", f"Reason: {reason}"]
+        if suggestion:
+            lines.append(f"Suggestion: {suggestion}")
+        lines.append("Resume available: run again to continue from this step.")
+        return "\n".join(lines)
 
     def _check_health(self) -> None:
-        """Verify external dependencies are available before running."""
         if self._skip_health_checks:
             return
         import subprocess
@@ -260,7 +157,41 @@ class Pipeline:
         if self.config.encoder and self.config.encoder != "libx264":
             from .utils.ffmpeg_utils import check_encoder_available
             if not check_encoder_available(self.config.encoder):
-                print(f"  Warning: encoder '{self.config.encoder}' unavailable, falling back to libx264.")
+                print("  Warning: encoder '{self.config.encoder}' unavailable, falling back to libx264.")
+
+    def _save_transcript_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "transcript.json"
+        try:
+            p.write_text(
+                json.dumps(self._ctx.transcript_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+    def _save_repaired_transcript_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "repaired_transcript.json"
+        try:
+            data = {"repaired_words": self._ctx.transcript_data.get("repaired_words", [])}
+            p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _save_clips_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "selected_clips.json"
+        try:
+            p.write_text(
+                json.dumps(self._ctx.selected_clips, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
 
     def run(self, source: str, resume: bool = True,
             output_dir: Optional[Path] = None, fresh: bool = False) -> PipelineResult:
@@ -283,14 +214,32 @@ class Pipeline:
 
         cache = CacheManager(out, source)
 
-        last_completed = cache.get_completed_step()
-        if fresh or (last_completed > 0 and not resume):
+        if fresh:
             cache.clear()
-            self._clear_step_cache()
-            last_completed = 0
-        elif last_completed > 0 and resume:
-            self._load_step_cache(result, last_completed)
-            print(f"  Resuming at step {last_completed + 1} (cached through step {last_completed})")
+
+        # ── Determine which stages are already complete ────────────────
+        transcript_done = cache.transcript_is_valid()
+        repair_done = cache.repaired_transcript_is_valid()
+        clips_done = cache.selected_clips_are_valid()
+
+        # Load required artifacts
+        if transcript_done:
+            self._load_transcript_artifact()
+            print("  Found transcript.json — skipping transcription.")
+        if repair_done:
+            self._load_repaired_transcript_artifact()
+            print("  Found repaired_transcript.json — skipping transcript repair.")
+        if clips_done:
+            self._load_clips_artifact()
+            print("  Found selected_clips.json — skipping clip selection.")
+
+        # Determine clip numbers for clip-level resume
+        clip_numbers: list[int] = []
+        if self._ctx.selected_clips:
+            clip_numbers = [c["number"] for c in self._ctx.selected_clips]
+
+        if transcript_done and repair_done and clips_done and clip_numbers:
+            print(f"  Clip-level resume active for {len(clip_numbers)} clips.")
 
         steps: list[tuple[int, str, Callable[[], None]]] = [
             (1, "validate_input", lambda: self._step_1_validate_input(source)),
@@ -298,35 +247,130 @@ class Pipeline:
             (3, "transcribe_audio", self._step_3_transcribe_audio),
             (4, "repair_transcript", self._step_4_repair_transcript),
             (5, "select_clips", self._step_5_select_clips),
-            (6, "render_subtitles", self._step_6_render_subtitles),
-            (7, "render_videos", lambda: self._step_7_render_videos(result)),
+            (6, "render_subtitles", lambda: self._step_6_render_subtitles(cache)),
+            (7, "render_videos", lambda: self._step_7_render_videos(result, cache)),
             (8, "validate_rendered", lambda: self._step_8_validate_rendered(result)),
-            (9, "generate_metadata", lambda: self._step_9_generate_metadata(result)),
+            (9, "generate_metadata", lambda: self._step_9_generate_metadata(result, cache, clip_numbers)),
             (10, "produce_final", lambda: self._step_10_produce_final(result)),
         ]
 
         try:
             for step_num, stage_name, step_fn in steps:
-                if step_num <= last_completed:
+                # Determine if this step is already complete
+                skip = self._step_is_cached(step_num, cache, transcript_done, repair_done,
+                                            clips_done, clip_numbers)
+                if skip:
                     _progress(step_num, len(_STEPS), f"{_STEPS[step_num - 1]} (cached)")
                     continue
                 with self.metrics.measure_stage(stage_name):
-                    step_fn()
-                cache.mark_step_completed(step_num)
-                self._save_step_cache(result)
+                    try:
+                        step_fn()
+                    except (OpusClipError, InputValidationError,
+                            TranscriptionError, RenderingError, MetadataError) as exc:
+                        err = self._error_msg(
+                            _STEPS[step_num - 1],
+                            str(exc),
+                            "Retry later. Resume available — run again without --fresh.",
+                        )
+                        print(f"\n  [Pipeline Error]\n{err}")
+                        raise
+                elapsed = self.metrics.stages.get(stage_name, 0)
+                print(f"  Completed in {elapsed:.1f}s")
+                self._save_step_artifacts(step_num)
         except OpusClipError:
             raise
         except KeyboardInterrupt:
-            print(f"\nInterrupted after step {last_completed} — progress saved.")
+            print("\nInterrupted — progress saved. Resume available.")
             raise
         except Exception as exc:
+            err = self._error_msg(
+                "Unknown",
+                f"{type(exc).__name__}: {exc}",
+                "Check logs for details.",
+            )
+            print(f"\n  [Pipeline Error]\n{err}")
             raise OpusClipError(f"Pipeline failed at an unexpected point: {exc}") from exc
         finally:
+            # Capture peak memory metrics
+            self.metrics.record_memory()
             self.metrics.finish()
             self.metrics.failures = result.failed_clips
+            print(self._summary_report(result))
             print(self.metrics.report())
 
         return result
+
+    def _step_is_cached(self, step_num: int, cache: CacheManager,
+                         transcript_done: bool, repair_done: bool,
+                         clips_done: bool, clip_numbers: list[int]) -> bool:
+        """Determine if a step can be skipped because its artifacts are valid."""
+        if step_num == 1 or step_num == 2:
+            return False
+        if step_num == 3:
+            return transcript_done
+        if step_num == 4:
+            return repair_done
+        if step_num == 5:
+            return clips_done
+        if step_num == 6 and clips_done and clip_numbers:
+            missing_subs = cache.list_missing_subtitles(clip_numbers)
+            return len(missing_subs) == 0
+        if step_num == 7 and clips_done and clip_numbers:
+            missing_vids = cache.list_missing_videos(clip_numbers)
+            return len(missing_vids) == 0
+        if step_num == 8:
+            if clips_done and clip_numbers:
+                missing_vids = cache.list_missing_videos(clip_numbers)
+                return len(missing_vids) == 0
+            return False
+        if step_num == 9 and clips_done and clip_numbers:
+            missing_meta = cache.list_missing_metadata(clip_numbers)
+            return len(missing_meta) == 0
+        if step_num == 10:
+            return cache.summary_exists()
+        return False
+
+    def _save_step_artifacts(self, step: int) -> None:
+        if step == 3:
+            self._save_transcript_artifact()
+        elif step == 4:
+            self._save_repaired_transcript_artifact()
+        elif step == 5:
+            self._save_clips_artifact()
+
+    def _load_transcript_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "transcript.json"
+        if not p.exists():
+            return
+        try:
+            self._ctx.transcript_data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    def _load_repaired_transcript_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "repaired_transcript.json"
+        if not p.exists():
+            return
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            self._ctx.transcript_data["repaired_words"] = data.get("repaired_words", [])
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    def _load_clips_artifact(self) -> None:
+        if self._ctx is None or self._ctx.output_dir is None:
+            return
+        p = self._ctx.output_dir / "selected_clips.json"
+        if not p.exists():
+            return
+        try:
+            self._ctx.selected_clips = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
 
     def run_batch(self, sources: list[str], resume: bool = True, fresh: bool = False) -> list[PipelineResult]:
         results: list[PipelineResult] = []
@@ -347,23 +391,27 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _step_1_validate_input(self, source: str) -> None:
         _progress(1, len(_STEPS), _STEPS[0])
+        print("  Checking source path...")
         import urllib.parse
         parsed = urllib.parse.urlparse(source)
         if parsed.scheme in ("http", "https"):
             from .input_validator import validate_youtube_url
             try:
                 validate_youtube_url(source)
+                print("  YouTube URL validated.")
             except InputValidationError:
                 pass
         else:
             from .input_validator import validate_video_path
             validate_video_path(source)
+            print(f"  Local file: {source}")
 
     # ------------------------------------------------------------------
     # Step 2: Read metadata
     # ------------------------------------------------------------------
     def _step_2_read_metadata(self) -> None:
         _progress(2, len(_STEPS), _STEPS[1])
+        print("  Acquiring video metadata...")
         meta: VideoMetadata = self.input_provider.acquire(
             source=self._source,
             output_dir=self._ctx.output_dir,
@@ -379,32 +427,50 @@ class Pipeline:
             self._ctx.src_crop_w += 1
         if self._ctx.src_crop_w > meta.width or self._ctx.src_crop_w == 0:
             self._ctx.src_crop_w = meta.width
+        print(f"  Video duration: {_sec2str(self._ctx.duration)}")
+        print(f"  Resolution: {meta.width}x{meta.height} @ {meta.fps}fps")
+        print(f"  Crop width calculated: {self._ctx.src_crop_w}px")
 
     # ------------------------------------------------------------------
     # Step 3: Transcribe audio
     # ------------------------------------------------------------------
     def _step_3_transcribe_audio(self) -> None:
         _progress(3, len(_STEPS), _STEPS[2])
+        print("  Loading Whisper model...")
         video = self._ctx.video_path
         if video is None:
             raise TranscriptionError("No video path available for transcription.")
         audio_path = self._ctx.output_dir / "audio.wav"
         from .subprocess_utils import run_ffmpeg
+        print("  Extracting audio...")
         run_ffmpeg([
             "-y", "-i", str(video),
             "-vn", "-acodec", "pcm_s16le",
             "-ar", "16000", "-ac", "1",
             str(audio_path),
         ])
+        audio_size = audio_path.stat().st_size if audio_path.exists() else 0
+        audio_dur = self._ctx.duration
+        print(f"  Audio duration: {_sec2str(audio_dur)} ({audio_size / 1024:.0f} KB)")
         try:
             lang = self._detect_language_from_path(video)
+            if lang:
+                print(f"  Detected language: {lang}")
+            print("  Transcribing...")
+            t0 = time.monotonic()
             result_obj = self.transcription_provider.transcribe(audio_path, lang)
+            elapsed = time.monotonic() - t0
             self._ctx.transcript_data = {
                 "segments": [(s.id, s.text, s.start, s.end) for s in result_obj.segments],
                 "words": [(w.word, w.start, w.end, w.probability) for w in result_obj.words],
                 "language": result_obj.language,
                 "duration": result_obj.duration,
             }
+            total_chars = sum(len(s.text) for s in result_obj.segments)
+            print(f"  Generated: {len(result_obj.segments)} segments, {len(result_obj.words)} words, {total_chars} chars")
+            print(f"  Language: {result_obj.language}")
+            print(f"  Transcription completed in {_sec2str(elapsed)}")
+            self.metrics.api_calls += 1
         finally:
             try:
                 audio_path.unlink(missing_ok=True)
@@ -435,6 +501,7 @@ class Pipeline:
             for wword, wstart, wend, wprob in raw.get("words", [])
         ]
         if not all_words:
+            print("  No words to repair.")
             return
         result_obj = TranscriptResult(
             segments=segments,
@@ -443,6 +510,7 @@ class Pipeline:
             duration=raw.get("duration", 0.0),
         )
         from .transcription.word_repair import fill_missing_words
+        print(f"  Repairing {len(all_words)} words...")
         repaired = fill_missing_words(result_obj)
         from .subtitle.text_cleaner import clean_transcript_for_llm
         cleaned_words = [
@@ -450,6 +518,7 @@ class Pipeline:
             for w in repaired
         ]
         self._ctx.transcript_data["repaired_words"] = cleaned_words
+        print(f"  Repaired: {len(cleaned_words)} words")
 
     # ------------------------------------------------------------------
     # Step 5: Select clips
@@ -472,7 +541,14 @@ class Pipeline:
             language=raw.get("language", ""),
             duration=raw.get("duration", 0.0),
         )
+        total_chars = sum(len(s.text) for s in segments)
+        print(f"  Total transcript chars: {total_chars}")
+        print("  Preparing LLM prompt...")
+        print(f"  Prompt size: {total_chars} chars")
+        print("  Sending request to LLM...")
+        t0 = time.monotonic()
         candidates = self.clip_selector.select_clips(result_obj, self.config)
+        elapsed = time.monotonic() - t0
         for i, c in enumerate(candidates):
             c.clip_number = i + 1
         self._ctx.selected_clips = [
@@ -486,11 +562,15 @@ class Pipeline:
             }
             for i, c in enumerate(candidates)
         ]
+        print(f"  LLM response received in {elapsed:.1f}s")
+        print(f"  Generated: {len(candidates)} clips")
+        for c in candidates:
+            print(f"    Clip {c.clip_number}: {c.start:.1f}s-{c.end:.1f}s (score: {c.score:.0f})")
 
     # ------------------------------------------------------------------
     # Step 6: Render subtitles
     # ------------------------------------------------------------------
-    def _step_6_render_subtitles(self) -> None:
+    def _step_6_render_subtitles(self, cache: CacheManager) -> None:
         _progress(6, len(_STEPS), _STEPS[5])
         subs_dir = self._ctx.output_dir / "subtitles"
         subs_dir.mkdir(exist_ok=True)
@@ -500,16 +580,30 @@ class Pipeline:
             if raw_words:
                 repaired = raw_words
         if not repaired:
+            print("  No words available for subtitle rendering.")
             return
         words_timing = [
             WordTiming(word=clean_for_subtitle(w[0]), start=float(w[1]), end=float(w[2]))
             for w in repaired
         ]
         subtitle_paths = []
+        n_clips = len(self._ctx.selected_clips)
+        clip_numbers = [c["number"] for c in self._ctx.selected_clips]
+        missing = cache.list_missing_subtitles(clip_numbers)
+
+        print(f"  Rendering subtitles for {len(missing)}/{n_clips} clips")
         for clip_info in self._ctx.selected_clips:
+            num = clip_info["number"]
             c_start = clip_info["start"]
             c_end = clip_info["end"]
-            out_path = subs_dir / f"clip_{clip_info['number']:02d}.ass"
+            out_path = subs_dir / f"clip_{num:02d}.ass"
+
+            if num not in missing:
+                print(f"    Clip {num}: cached")
+                subtitle_paths.append((num, out_path))
+                continue
+
+            print(f"    Clip {num}: rendering ({c_start:.1f}s-{c_end:.1f}s)...")
             self.subtitle_renderer.render(
                 words=words_timing,
                 clip_start=c_start,
@@ -517,24 +611,42 @@ class Pipeline:
                 config=self.config,
                 output_path=out_path,
             )
-            subtitle_paths.append((clip_info["number"], out_path))
+            subtitle_paths.append((num, out_path))
         self._ctx.render_state["subtitle_paths"] = subtitle_paths
+        print(f"  Subtitle files: {len(subtitle_paths)}/{n_clips}")
 
     # ------------------------------------------------------------------
     # Step 7: Render videos
     # ------------------------------------------------------------------
-    def _step_7_render_videos(self, result: PipelineResult) -> None:
+    def _step_7_render_videos(self, result: PipelineResult, cache: CacheManager) -> None:
         _progress(7, len(_STEPS), _STEPS[6])
         clips_dir = self._ctx.output_dir / "clips"
         clips_dir.mkdir(exist_ok=True)
         subtitle_paths = self._ctx.render_state.get("subtitle_paths", [])
         sub_map = {num: path for num, path in subtitle_paths}
+        total = len(self._ctx.selected_clips)
+        clip_numbers = [c["number"] for c in self._ctx.selected_clips]
+        missing = cache.list_missing_videos(clip_numbers)
+
+        # Add cached clips to result
+        for clip_info in self._ctx.selected_clips:
+            num = clip_info["number"]
+            if num not in missing:
+                final = clips_dir / f"clip_{num:02d}_FINAL.mp4"
+                thumb = clips_dir / f"clip_{num:02d}_thumb.jpg"
+                result.clips.append(ClipResult(
+                    number=num, video_path=final, thumbnail_path=thumb,
+                ))
+
+        print(f"  Rendering {len(missing)}/{total} clips (cached: {total - len(missing)})")
 
         clip_iter = self._ctx.selected_clips
         if _TQDM_AVAILABLE:
             clip_iter = _tqdm(clip_iter, desc="Rendering clips", leave=False)
         for clip_info in clip_iter:
             num = clip_info["number"]
+            if num not in missing:
+                continue
             candidate = ClipCandidate(
                 clip_number=num,
                 start=clip_info["start"],
@@ -551,6 +663,7 @@ class Pipeline:
                 ))
                 continue
             try:
+                print(f"  Rendering clip {num}/{total}: cropping...")
                 t0 = time.monotonic()
                 rendered = self.video_renderer.render_clip(self._ctx, candidate, sub_path)
                 elapsed = time.monotonic() - t0
@@ -560,11 +673,14 @@ class Pipeline:
                     video_path=rendered.path,
                     thumbnail_path=rendered.thumbnail_path,
                 ))
+                size_mb = rendered.path.stat().st_size / (1024 * 1024) if rendered.path.exists() else 0
+                print(f"    Clip {num}: saved ({elapsed:.1f}s, {size_mb:.1f} MB)")
             except RenderingError as exc:
                 result.clips.append(ClipResult(
                     number=num, video_path=Path(), thumbnail_path=Path(),
                     success=False, error=str(exc),
                 ))
+                print(f"    Clip {num}: FAILED - {exc}")
 
         result.successful_clips = sum(1 for c in result.clips if c.success)
         result.failed_clips = sum(1 for c in result.clips if not c.success)
@@ -577,29 +693,43 @@ class Pipeline:
         _progress(8, len(_STEPS), _STEPS[7])
         clips_dir = self._ctx.output_dir / "clips"
         if not clips_dir.exists():
+            print("  No clips directory found.")
             return
+        validated = 0
+        failed_validation = 0
         for f in clips_dir.iterdir():
             if f.suffix.lower() == ".mp4":
                 try:
                     validate_rendered_video(f, _TARGET_WIDTH, _TARGET_HEIGHT)
+                    validated += 1
                 except RenderingError as exc:
-                    _progress(8, len(_STEPS), f"Validation warning for {f.name}: {exc}")
+                    print(f"  Validation warning for {f.name}: {exc}")
                     for cr in result.clips:
                         if cr.video_path.resolve() == f.resolve():
                             cr.success = False
                             cr.error = f"Validation failed: {exc}"
                             break
+                    failed_validation += 1
         result.successful_clips = sum(1 for c in result.clips if c.success)
         result.failed_clips = sum(1 for c in result.clips if not c.success)
+        print(f"  Validated: {validated}/{validated + failed_validation} clips passed")
 
     # ------------------------------------------------------------------
     # Step 9: Generate metadata
     # ------------------------------------------------------------------
-    def _step_9_generate_metadata(self, result: PipelineResult) -> None:
+    def _step_9_generate_metadata(self, result: PipelineResult, cache: CacheManager,
+                                   clip_numbers: list[int]) -> None:
         _progress(9, len(_STEPS), _STEPS[8])
         repaired = self._ctx.transcript_data.get("repaired_words", [])
+        missing_meta = cache.list_missing_metadata(clip_numbers) if clip_numbers else [c["number"] for c in self._ctx.selected_clips]
+
+        print(f"  Generating metadata for {len(missing_meta)}/{len(self._ctx.selected_clips)} clips")
+
         for clip_info in self._ctx.selected_clips:
             num = clip_info["number"]
+            if num not in missing_meta:
+                print(f"    Clip {num}: cached")
+                continue
             c_start = clip_info["start"]
             c_end = clip_info["end"]
             candidate = ClipCandidate(
@@ -624,7 +754,6 @@ class Pipeline:
                 meta_dir = self._ctx.metadata_output_dir
                 if meta_dir:
                     meta_path = meta_dir / f"clip_{num:02d}_metadata.json"
-                    import json
                     meta_path.write_text(
                         json.dumps({
                             "title": meta.title,
@@ -634,8 +763,9 @@ class Pipeline:
                         }, ensure_ascii=False, indent=2),
                         encoding="utf-8",
                     )
+                print(f"    Clip {num}: metadata generated")
             except MetadataError as exc:
-                _progress(9, len(_STEPS), f"Metadata generation failed for clip {num}: {exc}")
+                print(f"    Clip {num}: metadata failed - {exc}")
 
     # ------------------------------------------------------------------
     # Step 10: Produce final outputs
@@ -659,7 +789,31 @@ class Pipeline:
                 for c in result.clips
             ],
         }
-        import json
         summary_path = self._ctx.output_dir / "pipeline_summary.json"
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(f"[{len(_STEPS)}/{len(_STEPS)}] Finished.")
+
+    def _summary_report(self, result: PipelineResult) -> str:
+        lines = []
+        lines.append("=" * 48)
+        lines.append("  Pipeline Summary")
+        lines.append("=" * 48)
+        lines.append(f"  Source duration     : {_sec2str(self._ctx.duration) if self._ctx else 'N/A'}")
+        for stage, elapsed in sorted(self.metrics.stages.items(), key=lambda x: x[1], reverse=True):
+            pct = (elapsed / self.metrics.total_duration * 100) if self.metrics.total_duration else 0
+            lines.append(f"  {stage:20s} : {elapsed:.1f}s ({pct:.0f}%)")
+        lines.append(f"  Total time          : {self.metrics.total_duration:.1f}s")
+        if self.metrics.clip_renders:
+            avg = sum(self.metrics.clip_renders.values()) / max(len(self.metrics.clip_renders), 1)
+            lines.append(f"  Avg clip render     : {avg:.1f}s")
+        lines.append(f"  Successful clips    : {result.successful_clips}/{result.total_clips}")
+        if self.metrics.peak_ram_mb:
+            lines.append(f"  Peak RAM            : {self.metrics.peak_ram_mb:.0f} MB")
+        if self.metrics.peak_vram_mb:
+            lines.append(f"  Peak VRAM           : {self.metrics.peak_vram_mb:.0f} MB")
+        if self.metrics.api_calls:
+            lines.append(f"  LLM API calls       : {self.metrics.api_calls}")
+        if self.metrics.api_retries:
+            lines.append(f"  LLM API retries     : {self.metrics.api_retries}")
+        lines.append("=" * 48)
+        return "\n".join(lines)

@@ -23,19 +23,22 @@ _COMPUTE_TYPE: str = "float16"
 _VAD_MIN_SILENCE_MS: int = 400
 
 # Bilingual initial prompt for Arabic-English content.
-# Instructs Whisper to keep English words in English and Arabic in Arabic,
-# never transliterating between the two.
+# Instructs Whisper to preserve the original language of each word,
+# never transliterate, never translate, never infer missing words.
 _ARABIC_INITIAL_PROMPT: str = (
-    "This is a bilingual Arabic and English podcast or program. "
-    "The speakers mix Arabic and English naturally. "
-    "IMPORTANT: Keep English words in English. Keep Arabic words in Arabic. "
+    "Transcribe exactly as spoken. "
+    "Never translate. "
+    "Never paraphrase. "
+    "Never infer missing words. "
+    "If a speaker switches language, preserve the original language. "
+    "Keep English words in English and Arabic words in Arabic. "
     "Never transliterate English into Arabic. "
-    "Preserve proper nouns, company names, product names, people's names, "
-    "URLs, and technical terms exactly as spoken. "
-    "Examples: 'Python', 'OpenAI', 'ChatGPT', 'How are you', 'Google', 'Apple' "
-    "must remain in English, not Arabic transliteration. "
+    "Keep acronyms uppercase. "
+    "Keep URLs unchanged. "
+    "Keep emails unchanged. "
+    "Keep code snippets unchanged. "
     "Normalize all numbers to digits (0-9). "
-    "Use clean punctuation. Remove repeated filler words when obvious."
+    "Use clean punctuation."
 )
 
 

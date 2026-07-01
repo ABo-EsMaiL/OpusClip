@@ -10,10 +10,12 @@ from ..config import PipelineConfig
 from ..fonts import FontManager
 
 _NUMBER_COLOR = "&H00FF6600"
-_ACCENT_COLOR = "&H001ADFFF"
 _DEFAULT_COLOR = "&H00FFFFFF"
 _CURRENT_COLOR = "&H0000FFFF"
 _ARABIC_RTL = "\\rtl1"
+
+# Max pixel width for subtitle text (80% of play width)
+_MAX_TEXT_WIDTH_RATIO: float = 0.80
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +45,10 @@ class ASSSubtitleRenderer(SubtitleRenderer):
         c = cs % 100
         return f"{h}:{m:02d}:{s:02d}.{c:02d}"
 
+    def _estimate_text_width(self, text: str, font_size: int) -> float:
+        avg_char_width = font_size * 0.55
+        return len(text) * avg_char_width
+
     def render(
         self,
         words: list[WordTiming],
@@ -57,12 +63,14 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             tw += 1
         th = config.target_height
 
-        fs = max(18, int(th * 0.036))
-        fs_hook = max(22, int(th * 0.042))
+        max_text_px = tw * _MAX_TEXT_WIDTH_RATIO
+
+        fs = max(20, int(th * 0.042))
+        fs_hook = max(24, int(th * 0.048))
         outline = max(3, int(th * 0.0025))
         shadow = 2
-        mv = int(th * 0.09)
-        mv_hook = int(th * 0.05)
+        mv = int(th * 0.085)
+        mv_hook = int(th * 0.045)
         spacing = -0.3
         font_ar = "Amiri"
         font_en = "Montserrat"
@@ -84,7 +92,7 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             f"&H00FFFFFF,&H000000FF,&H00333333,&H66000000,"
             f"-1,0,0,0,100,100,{spacing:.1f},0,1,{outline},{shadow},2,20,20,{mv},1\n"
             f"Style: Hook,{font_ar},{fs_hook},"
-            f"&H00{_ACCENT_COLOR[3:]},&H000000FF,&H00333333,&H88000000,"
+            f"&H001ADFFF,&H000000FF,&H00333333,&H88000000,"
             f"-1,0,0,0,100,100,{spacing:.1f},0,1,{outline},{shadow},8,20,20,{mv_hook},1\n\n"
             "[Events]\n"
             "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
@@ -113,10 +121,13 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             output_path.write_text(header + events, encoding="utf-8")
             return output_path
 
+        # Adaptive grouping: split lines based on pixel width, not just word count
         lines, cur = [], [clip_ws[0]]
         for i in range(1, len(clip_ws)):
             gap = clip_ws[i].start - clip_ws[i - 1].end
-            if len(cur) >= 4 or gap > 0.5:
+            candidate = " ".join(w.text for w in cur) + " " + clip_ws[i].text
+            est_w = self._estimate_text_width(candidate, fs)
+            if est_w > max_text_px or gap > 0.5:
                 lines.append(cur)
                 cur = []
             cur.append(clip_ws[i])

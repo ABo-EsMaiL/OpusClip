@@ -1,3 +1,4 @@
+import os
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -5,22 +6,16 @@ from dataclasses import dataclass, field
 
 @dataclass
 class PipelineMetrics:
-    """Collects timing and counter metrics for a single pipeline run.
+    """Collects timing, counter, and memory metrics for a single pipeline run."""
 
-    Attributes:
-        stages: Map of stage name to elapsed wall-clock time in seconds.
-        clip_renders: Map of clip number to render duration in seconds.
-        total_duration: Total pipeline wall-clock time in seconds.
-        api_calls: Number of LLM API calls made.
-        api_retries: Number of LLM API retries attempted.
-        failures: Number of stage/clip failures encountered.
-    """
     stages: dict[str, float] = field(default_factory=dict)
     clip_renders: dict[int, float] = field(default_factory=dict)
     total_duration: float = 0.0
     api_calls: int = 0
     api_retries: int = 0
     failures: int = 0
+    peak_ram_mb: float = 0.0
+    peak_vram_mb: float = 0.0
     _start_time: float = 0.0
 
     def start(self) -> None:
@@ -40,10 +35,30 @@ class PipelineMetrics:
     def record_clip_render(self, clip_num: int, duration: float) -> None:
         self.clip_renders[clip_num] = duration
 
+    def record_memory(self) -> None:
+        """Capture peak RAM and (optionally) VRAM usage."""
+        try:
+            import psutil
+            proc = psutil.Process(os.getpid())
+            self.peak_ram_mb = proc.memory_info().rss / (1024 * 1024)
+        except ImportError:
+            pass
+        try:
+            import torch
+            if torch.cuda.is_available():
+                self.peak_vram_mb = torch.cuda.max_memory_allocated() / (1024 * 1024)
+                torch.cuda.reset_peak_memory_stats()
+        except ImportError:
+            pass
+
     def report(self) -> str:
         lines = []
         lines.append(f"Total duration: {self.total_duration:.2f}s")
         more = []
+        if self.peak_ram_mb:
+            more.append(f"Peak RAM: {self.peak_ram_mb:.0f} MB")
+        if self.peak_vram_mb:
+            more.append(f"Peak VRAM: {self.peak_vram_mb:.0f} MB")
         if self.api_calls:
             more.append(f"API calls: {self.api_calls}")
         if self.api_retries:

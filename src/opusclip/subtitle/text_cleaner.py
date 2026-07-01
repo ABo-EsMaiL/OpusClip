@@ -19,6 +19,16 @@ _ISOLATED_PUNCT_RE = re.compile(r"\s+([،;:؟!.\-,?;!]+)\s+")
 # Leading/trailing punctuation cleanup per token
 _LEADING_TRAILING_PUNCT_RE = re.compile(r"^[^\w\d]+|[^\w\d]+$")
 
+# BiDi markers
+_RLM = "\u200F"  # Right-to-Left Mark
+_LRM = "\u200E"  # Left-to-Right Mark
+
+# Patterns for elements that must not be altered
+_URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+_EMAIL_RE = re.compile(r"[\w.]+@[\w.]+\.\w+", re.IGNORECASE)
+_PERCENTAGE_RE = re.compile(r"\d+(?:\.\d+)?\s*%")
+_CURRENCY_RE = re.compile(r"[€$£¥₹]\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s*(?:€|د\.ك|د\.ع|جنيه|ل\.س|USD|EUR|GBP)")
+
 
 def normalize_numbers(text: str) -> str:
     """Convert Arabic-Indic digits and worded numbers to ASCII digits (0-9)."""
@@ -44,13 +54,40 @@ def clean_punctuation(text: str) -> str:
     return text
 
 
+def bidi_clean_text(text: str) -> str:
+    """Insert Unicode BiDi markers to help renderers handle mixed text.
+
+    For lines that are predominantly Arabic, ensures trailing Latin text
+    (URLs, emails, numbers) is preceded by LRM for correct display.
+    """
+    if not text:
+        return text
+    if not is_arabic_text(text):
+        return text
+    result = []
+    words = text.split()
+    for i, w in enumerate(words):
+        has_latin = bool(re.search(r"[a-zA-Z]", w))
+        has_arabic = bool(re.search(r"[\u0600-\u06FF]", w))
+        if has_latin and not has_arabic:
+            if i > 0 and re.search(r"[\u0600-\u06FF]", words[i - 1]):
+                result.append(_LRM + w)
+            elif i < len(words) - 1 and re.search(r"[\u0600-\u06FF]", words[i + 1]):
+                result.append(w + _LRM)
+            else:
+                result.append(w)
+        else:
+            result.append(w)
+    return " ".join(result)
+
+
 def clean_for_subtitle(text: str) -> str:
     """
     Whitelist-based cleaning for subtitle rendering.
     Drops characters that are not explicitly Arabic or Latin to prevent
     'tofu' (hollow box) rendering issues in libass/Cairo.
 
-    Also normalizes numbers and cleans punctuation.
+    Also normalizes numbers, cleans punctuation, and applies BiDi hints.
 
     Args:
         text: Raw text from transcription or LLM.
@@ -87,12 +124,15 @@ def clean_for_subtitle(text: str) -> str:
                 0x2026,  # Ellipsis …
                 0x2013,  # En dash –
                 0x2014,  # Em dash —
+                0x200E,  # LRM (Left-to-Right Mark)
+                0x200F,  # RLM (Right-to-Left Mark)
             )
         )
         if keep:
             result.append(ch)
     text = "".join(result)
     text = clean_punctuation(text)
+    text = bidi_clean_text(text)
     return " ".join(text.split())
 
 
