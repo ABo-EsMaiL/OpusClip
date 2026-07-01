@@ -40,7 +40,7 @@ class LLMMetadataGenerator(MetadataGenerator):
             language register.
     """
 
-    def __init__(self, api_key: str, base_url: str, model: str, language: str = "ar") -> None:
+    def __init__(self, api_key: str, base_url: str, model: str, language: str = "en") -> None:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
         self.language = language

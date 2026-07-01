@@ -421,8 +421,10 @@ class Pipeline:
         self._ctx.video_height = meta.height
         self._ctx.video_fps = meta.fps
         self._ctx.duration = meta.duration
-        aspect = meta.width / meta.height
-        self._ctx.src_crop_w = int(meta.height * (_TARGET_WIDTH / _TARGET_HEIGHT) / aspect)
+        # Calculate crop width for vertical output (9:16)
+        # For horizontal video (16:9), we crop a vertical slice
+        # The crop width should maintain the target aspect ratio
+        self._ctx.src_crop_w = int(meta.height * (_TARGET_WIDTH / _TARGET_HEIGHT))
         if self._ctx.src_crop_w % 2:
             self._ctx.src_crop_w += 1
         if self._ctx.src_crop_w > meta.width or self._ctx.src_crop_w == 0:
@@ -722,6 +724,12 @@ class Pipeline:
         _progress(9, len(_STEPS), _STEPS[8])
         repaired = self._ctx.transcript_data.get("repaired_words", [])
         missing_meta = cache.list_missing_metadata(clip_numbers) if clip_numbers else [c["number"] for c in self._ctx.selected_clips]
+
+        # Set language from detected transcript so metadata follows video language
+        detected_lang = self._ctx.transcript_data.get("language", "en")
+        if detected_lang:
+            self.metadata_generator.language = detected_lang
+            print(f"  Metadata language: {detected_lang}")
 
         print(f"  Generating metadata for {len(missing_meta)}/{len(self._ctx.selected_clips)} clips")
 

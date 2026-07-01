@@ -9,7 +9,7 @@ from .text_cleaner import clean_for_subtitle, is_arabic_text
 from ..config import PipelineConfig
 from ..fonts import FontManager
 
-_NUMBER_COLOR = "&H00FF6600"
+_NUMBER_COLOR = "&H0000CC00"
 _DEFAULT_COLOR = "&H00FFFFFF"
 _CURRENT_COLOR = "&H0000FFFF"
 _ARABIC_RTL = "\\rtl1"

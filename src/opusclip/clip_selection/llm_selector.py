@@ -125,7 +125,7 @@ class LLMClipSelector(ClipSelector):
             RuntimeError: If the API returns no parsable clips after all
                 retry attempts.
         """
-        lang_hint = transcript.language or "ar"
+        lang_hint = transcript.language
         clip_system = get_clip_selection_prompt(
             min_clips=config.min_clips,
             max_clips=config.max_clips,

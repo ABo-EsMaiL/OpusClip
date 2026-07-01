@@ -76,7 +76,7 @@ class SmartDirector:
         self._mar_thr = speaking_mar
         self._area_thr = min_face_area
         self._hold_frames = max(1, int(fps * debounce_s))
-        self._smooth_x = vid_w // 2
+        self._smooth_x = float(vid_w // 2)
         self._state = self.BROLL
         self._hold_count = 0
         self._max_dx = max(1, int(src_crop_w * _MAX_DX_RATIO))
@@ -89,7 +89,7 @@ class SmartDirector:
         return self._state
 
     def _crop_start(self) -> int:
-        return max(0, min(self._smooth_x - self.cw // 2, self.vw - self.cw))
+        return int(max(0, min(self._smooth_x - self.cw // 2, self.vw - self.cw)))
 
     def _get_valid_faces(self, faces: list[FaceResult]) -> list[_FacePoint]:
         frame_area = self.vw * self.vh
@@ -145,14 +145,27 @@ class SmartDirector:
             tx = valid[0].x
             alpha = _ALPHA_SOLO
         elif self._state == self.GROUP and valid:
-            # Union bounding box center over all valid faces
-            xs = [fp.x for fp in valid]
-            tx = (min(xs) + max(xs)) // 2
+            # Union bounding box covering all valid faces with 10% padding
+            # Calculate the leftmost and rightmost edges of all faces
+            left_edges = [fp.x - fp.w // 2 for fp in valid]
+            right_edges = [fp.x + fp.w // 2 for fp in valid]
+            
+            leftmost = min(left_edges)
+            rightmost = max(right_edges)
+            union_width = rightmost - leftmost
+            
+            # Add 10% padding
+            padding = int(union_width * self._union_pad)
+            leftmost = max(0, leftmost - padding)
+            rightmost = min(self.vw, rightmost + padding)
+            
+            # Center the crop on the union box center
+            tx = (leftmost + rightmost) // 2
             alpha = _ALPHA_GROUP
         else:
             tx = self.vw // 2
             alpha = _ALPHA_BROLL
 
-        raw_dx = int(alpha * (tx - self._smooth_x))
-        self._smooth_x += max(-self._max_dx, min(self._max_dx, raw_dx))
+        raw_dx = alpha * (tx - self._smooth_x)
+        self._smooth_x += max(float(-self._max_dx), min(float(self._max_dx), raw_dx))
         return self._crop_start()

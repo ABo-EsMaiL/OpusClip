@@ -82,7 +82,7 @@ class ProviderFactory:
             api_key=api_key,
             base_url=self.config.llm_base_url,
             model=self.config.llm_model,
-            language="ar",
+            language="auto",
         )
 
     def create_pipeline(self, source: str) -> Pipeline:

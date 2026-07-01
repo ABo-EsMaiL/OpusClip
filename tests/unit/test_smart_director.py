@@ -115,3 +115,46 @@ class TestSmartDirectorZeroDivision:
         for _ in range(30):
             crop = director_1080p.update([face_centre])
             assert 0 <= crop <= 1920 - 1080
+
+
+class TestSmartDirectorGroupUnionBoundingBox:
+    def test_group_union_bounding_box_with_10_percent_padding(self, director_1080p):
+        """
+        Verify GROUP mode calculates union bounding box with 10% padding correctly.
+        
+        Test setup (1920x1080 frame, crop_width=1080):
+        - Face 1: bbox=(150, 300, 100, 120) -> center_x=200, w=100
+          left_edge = 200 - 100//2 = 150, right_edge = 200 + 100//2 = 250
+        - Face 2: bbox=(860, 300, 200, 240) -> center_x=960, w=200
+          left_edge = 960 - 200//2 = 860, right_edge = 960 + 200//2 = 1060
+        - Face 3: bbox=(1550, 300, 100, 120) -> center_x=1650, w=100
+          left_edge = 1650 - 100//2 = 1600, right_edge = 1650 + 100//2 = 1700
+        
+        Expected GROUP mode calculations:
+        - leftmost = min(150, 860, 1600) = 150
+        - rightmost = max(250, 1060, 1700) = 1700
+        - union_width = 1700 - 150 = 1550
+        - padding = int(1550 * 0.10) = 155
+        - leftmost_padded = max(0, 150 - 155) = 0
+        - rightmost_padded = min(1920, 1700 + 155) = 1855
+        - tx (union center) = (0 + 1855) // 2 = 927
+        - crop_start = tx - crop_width//2 = 927 - 540 = 387
+        """
+        face1 = FaceResult(bbox=(150, 300, 100, 120), landmarks=[], mouth_open_score=0.5)
+        face2 = FaceResult(bbox=(860, 300, 200, 240), landmarks=[], mouth_open_score=0.5)
+        face3 = FaceResult(bbox=(1550, 300, 100, 120), landmarks=[], mouth_open_score=0.5)
+        
+        # Run enough frames to debounce into GROUP state
+        for _ in range(20):
+            director_1080p.update([face1, face2, face3])
+        
+        assert director_1080p.state == SmartDirector.GROUP
+        
+        # Get the crop position after GROUP state is stable
+        # Run many frames to allow smoothing to converge
+        for _ in range(100):
+            crop = director_1080p.update([face1, face2, face3])
+        
+        # The smoothed crop position should converge toward crop_start=387
+        # After 100 frames with GROUP alpha=0.04, it should be very close
+        assert 360 <= crop <= 410
