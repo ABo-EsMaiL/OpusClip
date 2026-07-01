@@ -11,9 +11,41 @@ from faster_whisper import WhisperModel
 
 from .base import TranscriptionProvider, TranscriptResult, TranscriptSegment, WordInfo
 
+
+def _is_hallucination(words: list[WordInfo]) -> bool:
+    """Detect if a segment is likely a hallucination based on excessive word repetition.
+    
+    Args:
+        words: List of words in the segment.
+        
+    Returns:
+        True if the segment appears to be a hallucination, False otherwise.
+    """
+    if len(words) < _MIN_SEGMENT_LENGTH_FOR_CHECK:
+        return False
+    
+    # Count word frequency (case-insensitive, normalized)
+    word_counts: dict[str, int] = {}
+    for w in words:
+        normalized = w.word.lower().strip()
+        if not normalized:
+            continue
+        word_counts[normalized] = word_counts.get(normalized, 0) + 1
+    
+    if not word_counts:
+        return False
+    
+    # Calculate repetition ratio (most common word / total words)
+    max_count = max(word_counts.values())
+    total_count = len(words)
+    repetition_ratio = max_count / total_count
+    
+    # If more than 50% of words are the same, it's likely hallucination
+    return repetition_ratio > _MAX_REPETITION_RATIO
+
 # Minimum word probability accepted from Whisper output. Words below this
 # threshold are typically hallucinations or low-confidence tokens.
-_MIN_WORD_PROBABILITY: float = 0.55
+_MIN_WORD_PROBABILITY: float = 0.60
 
 # Default quantisation mode passed to CTranslate2 for the Whisper model.
 # Using float16 significantly reduces VRAM usage with negligible accuracy loss.
@@ -21,6 +53,12 @@ _COMPUTE_TYPE: str = "float16"
 
 # Minimum silence duration in milliseconds required for VAD to segment audio.
 _VAD_MIN_SILENCE_MS: int = 400
+
+# Maximum ratio of repeated words to total words before considering segment as hallucination.
+_MAX_REPETITION_RATIO: float = 0.5
+
+# Minimum segment length (in words) required to perform repetition check.
+_MIN_SEGMENT_LENGTH_FOR_CHECK: int = 5
 
 # Bilingual initial prompt for Arabic-English content.
 # Instructs Whisper to preserve the original language of each word,
@@ -75,10 +113,13 @@ class WhisperProvider(TranscriptionProvider):
             word_timestamps=True,
             language=language if language else None,
             initial_prompt=initial_prompt,
-            temperature=0.0,
-            condition_on_previous_text=True,
+            temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            condition_on_previous_text=False,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=_VAD_MIN_SILENCE_MS),
+            compression_ratio_threshold=2.4,
+            log_prob_threshold=-1.0,
+            no_speech_threshold=0.6,
         )
 
         segments: list[TranscriptSegment] = []
@@ -100,17 +141,26 @@ class WhisperProvider(TranscriptionProvider):
                 seg_words.append(wd)
                 all_words.append(wd)
 
+            # Detect and skip hallucinated segments with excessive repetition
             if seg_words:
-                segments.append(
-                    TranscriptSegment(
-                        id=seg_id,
-                        text=seg.text.strip(),
-                        start=round(seg.start, 3),
-                        end=round(seg.end, 3),
-                        words=seg_words,
+                if _is_hallucination(seg_words):
+                    # Log warning but continue processing
+                    import warnings
+                    warnings.warn(
+                        f"Skipped hallucinated segment at {seg.start:.1f}s-{seg.end:.1f}s "
+                        f"(excessive repetition detected)"
                     )
-                )
-                seg_id += 1
+                else:
+                    segments.append(
+                        TranscriptSegment(
+                            id=seg_id,
+                            text=seg.text.strip(),
+                            start=round(seg.start, 3),
+                            end=round(seg.end, 3),
+                            words=seg_words,
+                        )
+                    )
+                    seg_id += 1
 
         return TranscriptResult(
             segments=segments,
