@@ -22,13 +22,20 @@ _COMPUTE_TYPE: str = "float16"
 # Minimum silence duration in milliseconds required for VAD to segment audio.
 _VAD_MIN_SILENCE_MS: int = 400
 
-# An Egyptian-Arabic initial prompt significantly improves accuracy
-# for colloquial Arabic content. Applied when language is Arabic or unspecified.
+# Bilingual initial prompt for Arabic-English content.
+# Instructs Whisper to keep English words in English and Arabic in Arabic,
+# never transliterating between the two.
 _ARABIC_INITIAL_PROMPT: str = (
-    "هذا برنامج أو بودكاست بالعامية المصرية. "
-    "يتحدث المتحدثون بشكل طبيعي ويستخدمون كلمات "
-    "عامية مثل: مش، بقى، دلوقتي، كمان، بتاع، "
-    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني."
+    "This is a bilingual Arabic and English podcast or program. "
+    "The speakers mix Arabic and English naturally. "
+    "IMPORTANT: Keep English words in English. Keep Arabic words in Arabic. "
+    "Never transliterate English into Arabic. "
+    "Preserve proper nouns, company names, product names, people's names, "
+    "URLs, and technical terms exactly as spoken. "
+    "Examples: 'Python', 'OpenAI', 'ChatGPT', 'How are you', 'Google', 'Apple' "
+    "must remain in English, not Arabic transliteration. "
+    "Normalize all numbers to digits (0-9). "
+    "Use clean punctuation. Remove repeated filler words when obvious."
 )
 
 

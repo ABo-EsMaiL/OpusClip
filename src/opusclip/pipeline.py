@@ -444,9 +444,12 @@ class Pipeline:
         )
         from .transcription.word_repair import fill_missing_words
         repaired = fill_missing_words(result_obj)
-        self._ctx.transcript_data["repaired_words"] = [
-            (w.word, w.start, w.end, w.probability) for w in repaired
+        from .subtitle.text_cleaner import clean_transcript_for_llm
+        cleaned_words = [
+            (clean_transcript_for_llm(w.word), w.start, w.end, w.probability)
+            for w in repaired
         ]
+        self._ctx.transcript_data["repaired_words"] = cleaned_words
 
     # ------------------------------------------------------------------
     # Step 5: Select clips

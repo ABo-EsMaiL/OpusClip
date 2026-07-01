@@ -9,14 +9,23 @@ from .text_cleaner import clean_for_subtitle, is_arabic_text
 from ..config import PipelineConfig
 from ..fonts import FontManager
 
+_NUMBER_COLOR = "&H00FF6600"
+_ACCENT_COLOR = "&H001ADFFF"
+_DEFAULT_COLOR = "&H00FFFFFF"
+_CURRENT_COLOR = "&H0000FFFF"
+_ARABIC_RTL = "\\rtl1"
+
 
 @dataclass(frozen=True, slots=True)
 class AssWord:
-    """Internal representation of a subtitle word for formatting."""
-
     text: str
     start: float
     end: float
+    has_number: bool = False
+
+
+def _contains_number(text: str) -> bool:
+    return any(ch.isdigit() for ch in text)
 
 
 class ASSSubtitleRenderer(SubtitleRenderer):
@@ -26,7 +35,6 @@ class ASSSubtitleRenderer(SubtitleRenderer):
         self.font_manager = font_manager
 
     def _sec2ass(self, sec: float, offset: float = 0.0) -> str:
-        """Convert seconds to ASS timestamp format (H:MM:SS.cs)."""
         t = max(0.0, sec - offset)
         cs = int(round(t * 100))
         h = cs // 360000
@@ -44,21 +52,18 @@ class ASSSubtitleRenderer(SubtitleRenderer):
         output_path: Path,
         title: str = "",
     ) -> Path:
-        """
-        Builds the ASS file content and writes it to disk.
-        """
         tw = int(config.target_height * 9 / 16)
         if tw % 2 != 0:
             tw += 1
         th = config.target_height
 
-        fs = max(26, int(th * 0.052))
-        fs_hook = max(30, int(th * 0.058))
-        outline = max(6, int(th * 0.0045))
-        shadow = 3
-        mv = int(th * 0.07)
-        mv_hook = int(th * 0.04)
-        # We will use the family name assuming it maps correctly.
+        fs = max(18, int(th * 0.036))
+        fs_hook = max(22, int(th * 0.042))
+        outline = max(3, int(th * 0.0025))
+        shadow = 2
+        mv = int(th * 0.09)
+        mv_hook = int(th * 0.05)
+        spacing = -0.3
         font_ar = "Amiri"
         font_en = "Montserrat"
 
@@ -73,14 +78,14 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             "ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,"
             "Alignment,MarginL,MarginR,MarginV,Encoding\n"
             f"Style: Ar,{font_ar},{fs},"
-            f"&H00FFFFFF,&H000000FF,&H00000000,&H99000000,"
-            f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,20,20,{mv},1\n"
+            f"&H00FFFFFF,&H000000FF,&H00333333,&H66000000,"
+            f"-1,0,0,0,100,100,{spacing:.1f},0,1,{outline},{shadow},2,20,20,{mv},1\n"
             f"Style: En,{font_en},{fs},"
-            f"&H00FFFFFF,&H000000FF,&H00000000,&H99000000,"
-            f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,20,20,{mv},1\n"
+            f"&H00FFFFFF,&H000000FF,&H00333333,&H66000000,"
+            f"-1,0,0,0,100,100,{spacing:.1f},0,1,{outline},{shadow},2,20,20,{mv},1\n"
             f"Style: Hook,{font_ar},{fs_hook},"
-            f"&H001ADFFF,&H000000FF,&H00000000,&HAA000000,"
-            f"-1,0,0,0,100,100,0,0,1,{outline},{shadow},8,20,20,{mv_hook},1\n\n"
+            f"&H00{_ACCENT_COLOR[3:]},&H000000FF,&H00333333,&H88000000,"
+            f"-1,0,0,0,100,100,{spacing:.1f},0,1,{outline},{shadow},8,20,20,{mv_hook},1\n\n"
             "[Events]\n"
             "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
         )
@@ -99,7 +104,10 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             if clip_start <= mid <= clip_end:
                 txt = clean_for_subtitle(w.word.strip())
                 if txt:
-                    clip_ws.append(AssWord(text=txt, start=w.start, end=w.end))
+                    clip_ws.append(AssWord(
+                        text=txt, start=w.start, end=w.end,
+                        has_number=_contains_number(txt),
+                    ))
 
         if not clip_ws:
             output_path.write_text(header + events, encoding="utf-8")
@@ -108,7 +116,7 @@ class ASSSubtitleRenderer(SubtitleRenderer):
         lines, cur = [], [clip_ws[0]]
         for i in range(1, len(clip_ws)):
             gap = clip_ws[i].start - clip_ws[i - 1].end
-            if len(cur) >= 3 or gap > 0.45:
+            if len(cur) >= 4 or gap > 0.5:
                 lines.append(cur)
                 cur = []
             cur.append(clip_ws[i])
@@ -120,6 +128,8 @@ class ASSSubtitleRenderer(SubtitleRenderer):
             line_text = " ".join(lw.text for lw in line)
             style = "Ar" if is_arabic_text(line_text) else "En"
 
+            rtl_tag = _ARABIC_RTL if style == "Ar" else ""
+
             for i, word in enumerate(line):
                 w_start = word.start
                 w_end = line[i + 1].start if i < n - 1 else line[-1].end
@@ -128,11 +138,19 @@ class ASSSubtitleRenderer(SubtitleRenderer):
                 for j, lw in enumerate(line):
                     t = lw.text
                     if j == i:
-                        parts.append(f"{{\\c&H0000FFFF&}}{t}{{\\c&HFFFFFF&}}")
+                        if lw.has_number:
+                            parts.append("{\\c" + _NUMBER_COLOR + "}" + t + "{\\c" + _DEFAULT_COLOR + "}")
+                        else:
+                            parts.append("{\\c" + _CURRENT_COLOR + "}" + t + "{\\c" + _DEFAULT_COLOR + "}")
                     else:
-                        parts.append(t)
+                        if lw.has_number:
+                            parts.append("{\\c" + _NUMBER_COLOR + "}" + t + "{\\c" + _DEFAULT_COLOR + "}")
+                        else:
+                            parts.append(t)
 
                 display = " ".join(parts)
+                if rtl_tag:
+                    display = f"{rtl_tag}{display}"
                 ts = self._sec2ass(w_start, clip_start)
                 te = self._sec2ass(w_end, clip_start)
                 events += f"Dialogue: 0,{ts},{te},{style},,0,0,0,,{display}\n"
