@@ -25,8 +25,6 @@ _ALPHA_BROLL: float = 0.012
 
 _MAX_DX_RATIO: float = 0.04
 
-_NO_FACE_HOLD_S: float = 0.5
-
 # If multiple active speakers are closer than this fraction of crop width,
 # treat them as a single subject (SOLO mode).
 _GRP_SPREAD_RATIO: float = 0.55
@@ -79,12 +77,10 @@ class SmartDirector:
         self._area_thr = min_face_area
         self._hold_frames = max(1, int(fps * debounce_s))
         self._grp_spread = src_crop_w * _GRP_SPREAD_RATIO
-        self._smooth_x = float(vid_w // 2)
+        self._smooth_x = vid_w // 2
         self._state = self.BROLL
         self._hold_count = 0
         self._max_dx = max(1, int(src_crop_w * _MAX_DX_RATIO))
-        self._no_face_hold_frames = max(1, int(fps * _NO_FACE_HOLD_S))
-        self._no_face_counter = 0
 
     @property
     def state(self) -> int:
@@ -120,15 +116,7 @@ class SmartDirector:
 
         # Decide desired state based on v2.1 logic
         if not valid:
-            # No faces at all → BROLL (with hold for brief disappearances)
-            if self._state != self.BROLL:
-                self._no_face_counter += 1
-                if self._no_face_counter >= self._no_face_hold_frames:
-                    desired = self.BROLL
-                else:
-                    desired = self._state
-            else:
-                desired = self.BROLL
+            desired = self.BROLL
         elif not active:
             # Faces present but no one actively speaking → keep current state
             desired = self._state
@@ -151,10 +139,6 @@ class SmartDirector:
         else:
             self._hold_count = max(0, self._hold_count - 2)
 
-        # Reset no-face counter when faces are present
-        if valid:
-            self._no_face_counter = 0
-
         # Compute target pan position
         if self._state == self.SOLO:
             src = active if active else valid
@@ -175,6 +159,6 @@ class SmartDirector:
             tx = self.vw // 2
             alpha = _ALPHA_BROLL
 
-        raw_dx = alpha * (tx - self._smooth_x)
-        self._smooth_x += max(float(-self._max_dx), min(float(self._max_dx), raw_dx))
+        raw_dx = int(alpha * (tx - self._smooth_x))
+        self._smooth_x += max(-self._max_dx, min(self._max_dx, raw_dx))
         return self._crop_start()
