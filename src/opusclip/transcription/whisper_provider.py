@@ -67,7 +67,20 @@ _ARABIC_INITIAL_PROMPT: str = (
     "هذا برنامج أو بودكاست بالعامية المصرية. "
     "يتحدث المتحدثون بشكل طبيعي ويستخدمون كلمات "
     "عامية مثل: مش، بقى، دلوقتي، كمان، بتاع، "
-    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني."
+    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني. "
+    "Transcribe exactly as spoken. "
+    "Never translate. "
+    "Never paraphrase. "
+    "Never infer missing words. "
+    "If a speaker switches language, preserve the original language. "
+    "Keep English words in English and Arabic words in Arabic. "
+    "Never transliterate English into Arabic. "
+    "Keep acronyms uppercase. "
+    "Keep URLs unchanged. "
+    "Keep emails unchanged. "
+    "Keep code snippets unchanged. "
+    "Normalize all numbers to digits (0-9). "
+    "Use clean punctuation."
 )
 
 
