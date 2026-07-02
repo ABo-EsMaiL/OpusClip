@@ -61,9 +61,13 @@ _MAX_REPETITION_RATIO: float = 0.5
 _MIN_SEGMENT_LENGTH_FOR_CHECK: int = 5
 
 # Bilingual initial prompt for Arabic-English content.
-# Contains Arabic text to bias Whisper toward Arabic output
-# while keeping English text in English.
+# Arabic text biases Whisper toward Arabic output for Arabic audio.
+# Uses Egyptian dialect examples to improve accuracy for common content.
 _ARABIC_INITIAL_PROMPT: str = (
+    "هذا برنامج أو بودكاست بالعامية المصرية. "
+    "يتحدث المتحدثون بشكل طبيعي ويستخدمون كلمات "
+    "عامية مثل: مش، بقى، دلوقتي، كمان، بتاع، "
+    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني. "
     "Transcribe exactly as spoken. "
     "Never translate. "
     "Never paraphrase. "
@@ -71,12 +75,10 @@ _ARABIC_INITIAL_PROMPT: str = (
     "If a speaker switches language, preserve the original language. "
     "Keep English words in English and Arabic words in Arabic. "
     "Never transliterate English into Arabic. "
-    "مرحبا بكم في البرنامج. "
-    "نرحب بكم مرة أخرى. "
-    "اليوم لدينا ضيف مميز. "
-    "نتحدث عن موضوع مهم. "
-    "شكرا لكم على المشاهدة. "
-    "لا تنسوا الاشتراك في القناة. "
+    "Keep acronyms uppercase. "
+    "Keep URLs unchanged. "
+    "Keep emails unchanged. "
+    "Keep code snippets unchanged. "
     "Normalize all numbers to digits (0-9). "
     "Use clean punctuation."
 )
@@ -129,19 +131,16 @@ class WhisperProvider(TranscriptionProvider):
         if language == "ar":
             initial_prompt = _ARABIC_INITIAL_PROMPT
 
-        # Step 3: Transcribe with correct language and prompt
+        # Step 3: Transcribe with correct language and prompt (v2.1 params)
         seg_iter, _ = self.model.transcribe(
             str(audio_path),
             word_timestamps=True,
             language=language if language else None,
             initial_prompt=initial_prompt,
-            temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            condition_on_previous_text=False,
+            temperature=0.0,
+            condition_on_previous_text=True,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=_VAD_MIN_SILENCE_MS),
-            compression_ratio_threshold=2.4,
-            log_prob_threshold=-1.0,
-            no_speech_threshold=0.6,
         )
 
         segments: list[TranscriptSegment] = []
