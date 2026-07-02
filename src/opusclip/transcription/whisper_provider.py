@@ -106,11 +106,31 @@ class WhisperProvider(TranscriptionProvider):
         Returns:
             A fully populated :class:`TranscriptResult` dataclass.
         """
+        # Step 1: Detect language from audio (no word timestamps, no prompt bias)
+        if not language:
+            print("  Detecting language from audio...")
+            det_iter, info = self.model.transcribe(
+                str(audio_path),
+                language=None,
+                initial_prompt=None,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=_VAD_MIN_SILENCE_MS),
+            )
+            # Consume the iterator to get detection result
+            for _ in det_iter:
+                pass
+
+            detected_lang = info.language
+            print(f"  Detected language: {detected_lang} (probability: {info.language_probability:.2%})")
+            language = detected_lang
+
+        # Step 2: Set initial prompt based on detected language
         initial_prompt: str | None = None
         if language == "ar":
             initial_prompt = _ARABIC_INITIAL_PROMPT
 
-        seg_iter, info = self.model.transcribe(
+        # Step 3: Transcribe with correct language and prompt
+        seg_iter, _ = self.model.transcribe(
             str(audio_path),
             word_timestamps=True,
             language=language if language else None,
