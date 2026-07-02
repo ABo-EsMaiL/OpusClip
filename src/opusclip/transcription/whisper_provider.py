@@ -45,7 +45,7 @@ def _is_hallucination(words: list[WordInfo]) -> bool:
 
 # Minimum word probability accepted from Whisper output. Words below this
 # threshold are typically hallucinations or low-confidence tokens.
-_MIN_WORD_PROBABILITY: float = 0.60
+_MIN_WORD_PROBABILITY: float = 0.55
 
 # Default quantisation mode passed to CTranslate2 for the Whisper model.
 # Using float16 significantly reduces VRAM usage with negligible accuracy loss.
@@ -67,20 +67,7 @@ _ARABIC_INITIAL_PROMPT: str = (
     "هذا برنامج أو بودكاست بالعامية المصرية. "
     "يتحدث المتحدثون بشكل طبيعي ويستخدمون كلمات "
     "عامية مثل: مش، بقى، دلوقتي، كمان، بتاع، "
-    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني. "
-    "Transcribe exactly as spoken. "
-    "Never translate. "
-    "Never paraphrase. "
-    "Never infer missing words. "
-    "If a speaker switches language, preserve the original language. "
-    "Keep English words in English and Arabic words in Arabic. "
-    "Never transliterate English into Arabic. "
-    "Keep acronyms uppercase. "
-    "Keep URLs unchanged. "
-    "Keep emails unchanged. "
-    "Keep code snippets unchanged. "
-    "Normalize all numbers to digits (0-9). "
-    "Use clean punctuation."
+    "عشان، إزيك، عايز، بيقول، بيعمل، هيجي، أهو، يعني."
 )
 
 
@@ -108,34 +95,18 @@ class WhisperProvider(TranscriptionProvider):
         Returns:
             A fully populated :class:`TranscriptResult` dataclass.
         """
-        # Step 1: Detect language from audio (no word timestamps, no prompt bias)
-        if not language:
-            print("  Detecting language from audio...")
-            det_iter, info = self.model.transcribe(
-                str(audio_path),
-                language=None,
-                initial_prompt=None,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=_VAD_MIN_SILENCE_MS),
-            )
-            # Consume the iterator to get detection result
-            for _ in det_iter:
-                pass
-
-            detected_lang = info.language
-            print(f"  Detected language: {detected_lang} (probability: {info.language_probability:.2%})")
-            language = detected_lang
-
-        # Step 2: Set initial prompt based on detected language
+        # Single-pass transcription mimicking v2.1 behavior.
+        # v2.1 passed language=None (auto-detect) + Arabic initial prompt in ONE call.
+        # The Arabic prompt biases auto-detection toward Arabic for Arabic audio.
+        whisper_lang = None if not language else language
         initial_prompt: str | None = None
-        if language == "ar":
+        if whisper_lang is None or whisper_lang == "ar":
             initial_prompt = _ARABIC_INITIAL_PROMPT
 
-        # Step 3: Transcribe with correct language and prompt (v2.1 params)
-        seg_iter, _ = self.model.transcribe(
+        seg_iter, info = self.model.transcribe(
             str(audio_path),
             word_timestamps=True,
-            language=language if language else None,
+            language=whisper_lang,
             initial_prompt=initial_prompt,
             temperature=0.0,
             condition_on_previous_text=True,
